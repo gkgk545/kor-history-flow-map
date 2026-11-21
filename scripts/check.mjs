@@ -132,8 +132,7 @@ const missingMiddle = { snapshots: [], polities: [] };
 for (const [name, p] of Object.entries(content.polities)) {
   if (!p.intro || typeof p.intro !== 'object') { fail(`polities.${name}: intro가 {elementary, middle} 두 벌이 아님`); continue; }
   if (!p.intro.elementary || p.intro.elementary.length < 5) fail(`polities.${name}: 초등 한 줄 소개 없음`);
-  if (!p.intro.middle) missingMiddle.polities.push(name);
-  else if (p.intro.middle.length < 5) fail(`polities.${name}: 중등 소개가 너무 짧음`);
+  if (!p.intro.middle || p.intro.middle.length < 5) fail(`polities.${name}: 중등 소개 없음`);
 }
 
 // ---------- 3. 스냅샷 완결성 ----------
@@ -146,7 +145,7 @@ for (const s of snaps) {
   if (s.keyT < s.fromT || s.keyT > s.toT) fail(`${w}: 키가 적용 범위(${s.from}~${s.to}) 밖에 있음`);
   for (const [lv, R] of Object.entries(LEVEL_RULES)) {
     const x = s[lv];
-    if (!x) { if (lv === 'middle') missingMiddle.snapshots.push(s.key); else fail(`${w}: ${R.name} 글 없음`); continue; }
+    if (!x) { fail(`${w}: ${R.name} 글 없음`); continue; }
     const wl = `${w} ${R.name}`;
     if (!x.caption) fail(`${wl}: 캡션 없음`);
     const sentences = (x.summary || '').split(/(?<=[.?!])\s+/).filter(Boolean);
@@ -156,9 +155,31 @@ for (const s of snaps) {
     if (!Array.isArray(x.questions) || x.questions.length < R.questions[0] || x.questions.length > R.questions[1]) fail(`${wl}: 탐구 질문은 ${R.questions.join('~')}개`);
   }
 }
-// 중등 글은 5단계(글 쓰기) 전까지 비어 있을 수 있다 — 지금은 경고만
-if (missingMiddle.snapshots.length) note(`경고: 중등 글이 없는 스냅샷 ${missingMiddle.snapshots.length}장 (초등 글로 대신 보임)`);
-if (missingMiddle.polities.length) note(`경고: 중등 소개가 없는 나라 ${missingMiddle.polities.length}곳`);
+// 문장 길이 (초등 30자 안팎, 중등 50자 안팎) — 요약 문장 평균과 가장 긴 문장
+const LEN_RULES = { elementary: { avg: [20, 36], max: 55 }, middle: { avg: [36, 60], max: 80 } };
+for (const [lv, R] of Object.entries(LEN_RULES)) {
+  const lens = [];
+  for (const s of snaps) for (const x of (s[lv]?.summary || '').split(/(?<=[.?!])\s+/).filter(Boolean)) {
+    lens.push(x.length);
+    if (x.length > R.max) fail(`스냅샷 ${s.key} ${LEVEL_RULES[lv].name}: 요약 문장이 ${x.length}자 (${R.max}자 넘음) — "${x.slice(0, 20)}…"`);
+  }
+  const avg = lens.reduce((a, b) => a + b, 0) / lens.length;
+  if (avg < R.avg[0] || avg > R.avg[1]) fail(`${LEVEL_RULES[lv].name} 요약 문장 평균 ${avg.toFixed(1)}자 (${R.avg.join('~')}자 밖)`);
+  note(`${LEVEL_RULES[lv].name} 요약 문장 평균 ${avg.toFixed(1)}자, 가장 긴 문장 ${Math.max(...lens)}자`);
+}
+// 성취기준 (2022 개정 중학교 역사 한국사 영역 9역08-01~9역13-04, 화면에는 표시하지 않음)
+const STANDARDS = { '9역08': 3, '9역09': 3, '9역10': 4, '9역11': 3, '9역12': 3, '9역13': 4 };
+const usedStd = new Set();
+for (const s of snaps) {
+  if (!Array.isArray(s.standards) || !s.standards.length) { fail(`스냅샷 ${s.key}: standards(성취기준) 없음`); continue; }
+  for (const code of s.standards) {
+    const m = /^(9역1[0-3]|9역0[89])-0(\d)$/.exec(code);
+    if (!m || +m[2] < 1 || +m[2] > STANDARDS[m[1]]) fail(`스냅샷 ${s.key}: 없는 성취기준 코드 ${code}`);
+    usedStd.add(code);
+  }
+}
+note(`성취기준 ${usedStd.size}개 사용 (전체 ${Object.values(STANDARDS).reduce((a, b) => a + b, 0)}개)`);
+if (/standards/.test(read('js/app.js'))) fail('js/app.js가 성취기준을 화면에 쓰고 있음 (화면에는 표시하지 않기로 함)');
 // 수준 읽기
 for (const [q, want] of [['', 'elementary'], ['?level=middle', 'middle'], ['?year=-108&level=middle', 'middle'], ['?level=high', 'elementary'], ['?level=Middle', 'elementary']]) {
   if (Model.levelFromSearch(q) !== want) fail(`주소 "${q}"의 수준이 ${want}가 아님`);
@@ -364,6 +385,48 @@ for (const [src, text] of Object.entries(textSources)) {
 }
 for (const w of FORBIDDEN) if (middleText.includes(w)) fail(`중등 글: 어디서나 넣지 않기로 한 표기 "${w}"가 있음`);
 note(`중등 글에서만 허용: ${MIDDLE_ONLY.map((w) => `"${w}" ${middleText.split(w).length - 1}회`).join(', ')}`);
+// 고조선 도형은 전부 '논쟁', 간도는 영토 색이 아닌 영역(kind zone, fillAs 없음)
+for (const s of snaps) for (const f of s.features) {
+  const p = f.properties;
+  if (p.name === '고조선' && p.confidence !== '논쟁') fail(`스냅샷 ${s.key}: 고조선 도형이 '논쟁'이 아님`);
+  if (/^간도/.test(p.name)) {
+    if (p.kind !== 'zone' || p.fillAs || p.confidence !== '논쟁') fail(`스냅샷 ${s.key}: 간도는 kind "zone"·fillAs 없음·'논쟁'이어야 함`);
+  }
+  if (p.kind === 'zone' && p.fillAs) fail(`스냅샷 ${s.key} ${p.name}: 영역(zone)에 fillAs가 있음`);
+}
+if (!snaps.some((s) => s.features.some((f) => /^간도/.test(f.properties.name)))) fail('1900~1909 장면에 간도 영역이 없음');
+if (fs.existsSync(path.join(ROOT, 'js/map.js')) && !/isZone \? self\._zoneHatch/.test(read('js/map.js'))) fail('js/map.js가 영역(zone)을 빗금이 아닌 색으로 칠할 수 있음');
+// 한반도 안 기원전 108년~313년: 주변 세력 면이 없고, 한 군현 자리(대동강 유역·황해도)는 빈칸
+const PENINSULA = [[124.15, 39.9], [124.95, 40.48], [125.6, 40.76], [126.2, 41.1], [126.62, 41.7], [127.5, 41.48], [128.15, 41.4], [128.12, 41.98], [129.2, 42.18], [129.75, 42.5], [129.88, 42.97], [130.6, 42.32], [130.8, 42.2], [130.1, 41.0], [128.0, 39.5], [129.6, 36.0], [129.25, 34.95], [126.6, 34.0], [125.9, 34.2], [125.6, 37.0], [124.4, 38.0], [124.15, 39.9]];
+function inRing(pt, r) {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    if ((r[i][1] > pt[1]) !== (r[j][1] > pt[1]) && pt[0] < ((r[j][0] - r[i][0]) * (pt[1] - r[i][1])) / (r[j][1] - r[i][1]) + r[i][0]) c = !c;
+  }
+  return c;
+}
+function inFeature(pt, f) {
+  const g = f.geometry;
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+  return polys.some((poly) => inRing(pt, poly[0]) && !poly.slice(1).some((h) => inRing(pt, h)));
+}
+const grid = [];
+for (let x = 124.2; x <= 130.8; x += 0.2) for (let y = 34.1; y <= 42.9; y += 0.2) if (inRing([x, y], PENINSULA)) grid.push([x, y]);
+const EMPTY_PTS = { '대동강 유역(평양)': [125.75, 39.03], '황해도': [125.9, 38.1] };
+let probe = 0;
+for (let t = Model.yearT(-108); t <= Model.yearT(313, 12); t += 6) {
+  const idx = Model.indexAtT(snaps, t);
+  if (idx < 0) continue;
+  const vis = Model.visibleFeatures(snaps[idx], t).filter((f) => /Polygon$/.test(f.geometry.type));
+  probe++;
+  const nb = vis.filter((f) => f.properties.role === 'neighbor' && grid.some((pt) => inFeature(pt, f)));
+  if (nb.length) { fail(`${Model.yearOf(t)}년: 한반도 안에 주변 세력 면(${nb.map((f) => f.properties.name).join(', ')})이 있음`); break; }
+  if (t >= Model.yearT(-107) && t <= Model.yearT(312, 12)) {
+    const bad = Object.entries(EMPTY_PTS).filter(([, pt]) => vis.some((f) => inFeature(pt, f)));
+    if (bad.length) { fail(`${Model.keyLabel(String(Model.yearOf(t)))}: ${bad.map((b) => b[0]).join('·')}가 비어 있지 않음 (한 군현 자리는 빈칸)`); break; }
+  }
+}
+note(`기원전 108년~313년 ${probe}개 시점에서 한반도 안 주변 세력 면 없음·한 군현 자리 빈칸 확인 (격자 ${grid.length}점)`);
 // 논쟁 도형은 점선
 let disputed = 0;
 for (const s of snaps) for (const f of s.features) {
