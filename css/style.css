@@ -76,6 +76,7 @@ button { font: inherit; color: inherit; }
 #map .polity path { cursor: pointer; }
 #map .polity.korea { opacity: 0.62; }
 #map .polity.neighbor { opacity: 0.5; }
+#map .polity.zone { opacity: 0.7; }
 #map .edge { fill: none; vector-effect: non-scaling-stroke; pointer-events: none; }
 #map .edge.disputed { stroke-width: 2; stroke-linecap: round; }
 #map .edge.prev { stroke: var(--accent); stroke-width: 2.2; stroke-dasharray: 3 5; stroke-linecap: round; opacity: 0.9; }
@@ -103,6 +104,7 @@ button { font: inherit; color: inherit; }
 .lbl.river { font-size: 12px; color: #3f7fa3; font-weight: 600; }
 .lbl.line { font-size: 13px; color: var(--accent); }
 .lbl.line.black { color: #222; }
+.lbl.zone { font-size: var(--lbl-nb, 13px); color: #6a5229; font-weight: 700; font-style: italic; }
 .lbl.dim { opacity: 0.35; }
 
 /* 지도 위 카드 */
@@ -129,6 +131,7 @@ button { font: inherit; color: inherit; }
 .swatch { flex: none; display: inline-block; width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.25); }
 .swatch.hatch { background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.65) 0 3px, transparent 3px 7px); }
 .swatch.line { height: 4px; border: 0; border-radius: 2px; }
+.swatch.zone { background: repeating-linear-gradient(45deg, #8a6d3b 0 2px, transparent 2px 6px) !important; border-style: dashed; }
 .toggle { display: flex; align-items: center; gap: 10px; min-height: var(--touch); padding: 4px 6px; margin-top: 6px; font-size: 14px; cursor: pointer; }
 .toggle input { width: 24px; height: 24px; margin: 0; accent-color: var(--accent); }
 .legend-note { margin: 0; padding: 0 6px; font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }

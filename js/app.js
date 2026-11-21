@@ -94,8 +94,10 @@
       var minGap = y0 < 0 ? 84 : 46;
       var step = AXIS_STEPS.find(function (st) { return st * pxPerYear >= minGap; }) || 1000;
       var first = Math.ceil(y0 / step) * step;
-      for (var y = first; y <= y1; y += step) {
-        if (y === 0) continue;
+      var years = [];
+      if (y0 < 0 && y1 > 0) years.push(1); // 기원전과 기원후의 경계
+      for (var yy = first; yy <= y1; yy += step) if (yy !== 0) years.push(yy);
+      years.forEach(function (y) {
         var at = frac(Model.yearT(y)) * w;
         var s = document.createElement('span');
         s.textContent = Model.yearText(y);
@@ -104,7 +106,7 @@
         var half = s.offsetWidth / 2 + 4;
         var hit = at - half < 0 || at + half > w || placed.some(function (q) { return at - half < q[1] && at + half > q[0]; });
         if (hit) axis.removeChild(s); else placed.push([at - half, at + half]);
-      }
+      });
     });
     // 밴드 이름이 칸보다 길면 숨긴다
     Array.prototype.forEach.call($('bands').children, function (b) {
@@ -195,7 +197,7 @@
       b.className = 'lg-item ' + p.role;
       b.dataset.name = p.name;
       var sw = document.createElement('span');
-      sw.className = 'swatch' + (pol.pattern === 'hatch' ? ' hatch' : '') + (p.kind === 'line' ? ' line' : '');
+      sw.className = 'swatch' + (pol.pattern === 'hatch' ? ' hatch' : '') + (p.kind === 'line' ? ' line' : '') + (p.kind === 'zone' ? ' zone' : '');
       sw.style.background = p.role === 'neighbor' ? '#9b9b9b' : pol.color;
       if (pol.pattern === 'hatch') sw.style.backgroundColor = pol.color;
       b.appendChild(sw);

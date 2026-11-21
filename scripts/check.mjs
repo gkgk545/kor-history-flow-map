@@ -112,8 +112,9 @@ for (const [key, fc] of Object.entries(geo)) {
     if (!CONF.includes(p.confidence)) fail(`${w}: confidence는 "대략" 또는 "논쟁"`);
     if (typeof p.basis !== 'string' || p.basis.trim().length < 4) fail(`${w}: basis(근거) 없음`);
     if (!isPos(p.anchor)) fail(`${w}: anchor(이름표 위치) 없음`);
-    if (p.kind && p.kind !== 'line') fail(`${w}: 알 수 없는 kind ${p.kind}`);
+    if (p.kind && p.kind !== 'line' && p.kind !== 'zone') fail(`${w}: 알 수 없는 kind ${p.kind}`);
     if (p.kind === 'line' && f.geometry.type !== 'LineString') fail(`${w}: 선 도형은 LineString이어야 함`);
+    if (p.kind === 'zone' && !/Polygon$/.test(f.geometry.type)) fail(`${w}: 영역(zone) 도형은 Polygon/MultiPolygon이어야 함`);
     if (!p.kind && !/Polygon$/.test(f.geometry.type)) fail(`${w}: 나라 도형은 Polygon/MultiPolygon이어야 함`);
     if (!content.polities[p.name]) fail(`${w}: content.json polities에 소개가 없음`);
     if (p.fillAs && !fc.features.some((g) => g.properties.name === p.fillAs)) fail(`${w}: fillAs "${p.fillAs}"인 도형이 같은 스냅샷에 없음`);

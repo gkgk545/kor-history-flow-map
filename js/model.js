@@ -9,7 +9,7 @@
 (function (root) {
   'use strict';
 
-  var MIN_YEAR = 375;
+  var MIN_YEAR = -400;
   var MAX_YEAR = 2026;
 
   // "475" → {y:475, m:null}, "1950-08" → {y:1950, m:8}, "-108" → {y:-108, m:null}. 0년은 없다.

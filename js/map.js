@@ -3,6 +3,7 @@
  * - 나라 면은 육지 모양으로 잘라(clipPath) 해안선은 또렷하게, 내륙 경계는 흐리게(blur) 그린다.
  * - confidence "논쟁" 도형은 Model.edgeStyle 규칙대로 점선 테두리를 덧그린다.
  * - 이름표는 확대해도 글자 크기가 변하지 않도록 화면 좌표의 HTML로 올린다.
+ * - kind "zone"(간도처럼 영토가 아닌 영역)은 영토 색 대신 옅은 빗금과 점선으로만 그린다.
  */
 (function () {
   'use strict';
@@ -154,6 +155,16 @@
     return 'url(#' + id + ')';
   };
 
+  // 영토가 아닌 영역: 투명 바탕에 가는 빗금만
+  MapView.prototype._zoneHatch = function (color) {
+    var id = 'zone-' + color.replace('#', '');
+    if (!this.defs.querySelector('#' + id)) {
+      var pat = el('pattern', { id: id, patternUnits: 'userSpaceOnUse', width: 7, height: 7, patternTransform: 'rotate(45)' }, this.defs);
+      el('rect', { width: 1.6, height: 7, fill: color }, pat);
+    }
+    return 'url(#' + id + ')';
+  };
+
   /*
    * 그리기
    *   features: 지금 보이는 도형
@@ -188,8 +199,10 @@
       var colorName = p0.fillAs || name;
       var color = self._color(colorName, p0.role);
       var pol = self.atlas.polities[colorName] || {};
-      var fill = pol.pattern === 'hatch' ? self._hatch(color) : color;
-      var g = el('g', { class: 'polity ' + p0.role + (self.rendered ? ' layer-enter' : ''), filter: 'url(#soft)', 'data-name': name }, self.gFill);
+      var isZone = p0.kind === 'zone';
+      var fill = isZone ? self._zoneHatch(color) : pol.pattern === 'hatch' ? self._hatch(color) : color;
+      var g = el('g', { class: 'polity ' + (isZone ? 'zone' : p0.role) + (self.rendered ? ' layer-enter' : ''), 'data-name': name }, self.gFill);
+      if (!isZone) g.setAttribute('filter', 'url(#soft)');
       self.groups[name] = { g: g, features: fs, color: color, role: p0.role, fillAs: p0.fillAs || null };
       fs.forEach(function (f) {
         var path = el('path', { d: geomD(f.geometry), fill: fill }, g);
@@ -208,7 +221,7 @@
       // 이름표: 보이는 조각 중 가장 큰 조각의 anchor
       var best = fs.reduce(function (a, f) { var ar = geomArea(f.geometry); return !a || ar > a.ar ? { f: f, ar: ar } : a; }, null);
       var isIslet = !!p0.fillAs;
-      self.labels.push({ text: name, at: best.f.properties.anchor, cls: isIslet ? 'islet' : p0.role, name: name });
+      self.labels.push({ text: name, at: best.f.properties.anchor, cls: isIslet ? 'islet' : isZone ? 'zone' : p0.role, name: name });
       if (isIslet) self.labels[self.labels.length - 1].dy = name === '독도' ? 15 : -15;
       if (isIslet) {
         // 작은 섬은 화면에서 점으로도 보이게 한다
@@ -225,11 +238,11 @@
       var prevBy = new Map();
       prevFeatures.forEach(function (f) {
         var p = f.properties;
-        if (p.role !== 'korea' || p.kind === 'line' || p.fillAs) return;
+        if (p.role !== 'korea' || p.kind || p.fillAs) return;
         if (!prevBy.has(p.name)) prevBy.set(p.name, []);
         prevBy.get(p.name).push(f);
       });
-      var now = edgeKeys(areas.filter(function (f) { return f.properties.role === 'korea' && !f.properties.fillAs; }));
+      var now = edgeKeys(areas.filter(function (f) { return f.properties.role === 'korea' && !f.properties.fillAs && !f.properties.kind; }));
       prevBy.forEach(function (fs) { el('path', { class: 'edge prev', d: outlineD(fs, now) }, self.gPrev); });
     }
     this.gPrev.style.display = this.showPrev ? '' : 'none';
@@ -281,7 +294,7 @@
   MapView.prototype._buildLabels = function () {
     var box = this.labelsEl;
     box.textContent = '';
-    var PRI = { korea: 0, islet: 1, line: 2, 'line black': 2, sea: 3, neighbor: 4, river: 5 };
+    var PRI = { korea: 0, islet: 1, line: 2, 'line black': 2, zone: 2, sea: 3, neighbor: 4, river: 5 };
     this.labelEls = this.labels.map(function (l) {
       var d = document.createElement('div');
       d.className = 'lbl ' + l.cls;
