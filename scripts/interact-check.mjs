@@ -134,6 +134,17 @@ await check('바로 앞 장면 경계 끄기', () => ev(`${H} $('prev-toggle').c
 await check('기원전 400년: 고조선 논쟁 점선', async () => { await open('year=-400'); return ev(`return document.querySelectorAll('#map .edge.disputed[stroke-dasharray]').length > 0;`); });
 await check('속도 버튼 4×', () => ev(`${H} $('speed').click(); $('speed').click(); return $('speed').textContent === '4×' || $('speed').textContent;`));
 await check('Space로 재생/정지', () => ev(`${H} key(' '); await sleep(300); const a = $('play').getAttribute('aria-label'); key(' '); await sleep(50); return (a === '정지' && $('play').getAttribute('aria-label') === '재생') || a;`));
+await check('재생 중 멈추지 않음(시작할 때, 시대가 바뀌는 1876·1910·1945년을 지날 때)', async () => {
+  await open('year=1860');
+  return ev(`${H} $('speed').click(); $('speed').click();
+    const pos = () => parseFloat($('thumb').style.left);
+    const seen = [[pos(), time()]]; $('play').click();
+    for (let i = 0; i < 25; i++) { await sleep(200); seen.push([pos(), time()]); }
+    $('play').click();
+    const stall = seen.filter((s, i) => i && !(s[0] > seen[i - 1][0])).map((s) => s[1]);
+    const passed = ['1876', '1910', '1945'].every((y) => seen.some((s) => Number(s[1].slice(0, 4)) > +y));
+    return (!stall.length && passed) || { stall, last: seen.at(-1)[1] };`);
+});
 await check('4배속으로 끝까지 재생(1900년부터)', async () => {
   await open('year=1900');
   return ev(`${H} $('speed').click(); $('speed').click(); $('play').click();

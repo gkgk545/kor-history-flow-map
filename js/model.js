@@ -150,9 +150,9 @@
     return null;
   }
 
-  // 재생할 때 들르는 지점
-  //  - 시대 띠가 바뀌는 때(kind "era"): 잠깐 멈춘다
-  //  - 스냅샷 시작(kind "snapshot"): 멈추지 않고 지나가되, 같은 해 안의 장면도 한 장씩 그린다
+  // 재생할 때 들르는 지점: 멈추지 않고 지나가되, 그 장면을 한 번씩 그린다
+  //  - 스냅샷 시작(kind "snapshot"): 같은 해 안의 장면도 한 장씩
+  //  - 시대 띠가 바뀌는 때(kind "era"): 위쪽 시대 표시가 바뀌는 지점
   function playStops(snaps, eras) {
     var byT = {};
     snaps.forEach(function (s, i) {

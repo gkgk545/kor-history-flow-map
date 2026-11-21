@@ -26,7 +26,7 @@
   function txt(snap) { return snap[LEVEL] || snap.elementary; }
   function intro(pol) { return Model.pick(pol && pol.intro, LEVEL) || ''; }
   var SPEEDS = [0.5, 1, 2, 4];
-  var SECONDS_PER_TRACK = 90; // 1배속에서 막대 끝까지 움직이는 시간(멈춤 제외)
+  var SECONDS_PER_TRACK = 90; // 1배속에서 막대 처음부터 끝까지 걸리는 시간(중간에 멈추지 않음)
 
   var $ = function (id) { return document.getElementById(id); };
   var app = $('app');
@@ -406,7 +406,7 @@
   $('next').addEventListener('click', function () { step(1); });
 
   // ---------- 재생 ----------
-  var cursor = 0, holdUntil = 0, nextStop = 0, lastTs = 0, raf = 0; // cursor: 막대 위치(0~1)
+  var cursor = 0, nextStop = 0, lastTs = 0, raf = 0; // cursor: 막대 위치(0~1)
 
   function startPlay() {
     if (state.idx === snaps.length - 1) setState(Model.stateForYear(snaps, Model.MIN_YEAR));
@@ -414,7 +414,6 @@
     cursor = frac(state.t);
     nextStop = stops.findIndex(function (s) { return s.t > state.t; });
     if (nextStop < 0) nextStop = stops.length;
-    holdUntil = performance.now() + 500;
     lastTs = 0;
     updatePlayBtn();
     raf = requestAnimationFrame(tick);
@@ -437,25 +436,21 @@
     var dt = lastTs ? Math.min(0.1, (ts - lastTs) / 1000) : 0;
     lastTs = ts;
     var speed = SPEEDS[speedIdx];
-    if (ts >= holdUntil) {
-      // 막대 위를 고른 빠르기로 지나간다(시대 띠가 좁으면 그 시대는 빨리 지나감)
-      cursor += (dt * speed) / SECONDS_PER_TRACK;
-      var stop = stops[nextStop];
-      if (stop && cursor >= frac(stop.t)) {
-        cursor = frac(stop.t);
-        nextStop++;
-        setState({ idx: stop.idx, t: stop.t, hasMonth: stop.hasMonth }, { silent: true });
-        // 시대가 바뀔 때만 멈춘다. 장면이 바뀌는 지점은 그리고 바로 지나간다.
-        holdUntil = stop.kind === 'era' ? ts + 1800 / Math.sqrt(speed) : ts;
-      } else if (cursor >= frac(MAX_T)) {
-        setState(Model.stateForIndex(snaps, snaps.length - 1));
-        stopPlay();
-        return;
-      } else {
-        var t = scale.fracToT(cursor);
-        var idx = Model.indexAtT(snaps, t);
-        if (idx >= 0 && Model.yearOf(t) !== Model.yearOf(state.t)) setState({ idx: idx, t: Model.yearT(Model.yearOf(t)), hasMonth: false }, { silent: true });
-      }
+    // 막대 위를 고른 빠르기로 멈추지 않고 지나간다(시대 띠가 좁으면 그 시대는 빨리 지나감).
+    // 장면·시대가 바뀌는 지점은 그 장면을 그리고 바로 지나간다.
+    cursor += (dt * speed) / SECONDS_PER_TRACK;
+    var stop = stops[nextStop];
+    if (stop && cursor >= frac(stop.t)) {
+      nextStop++;
+      setState({ idx: stop.idx, t: stop.t, hasMonth: stop.hasMonth }, { silent: true });
+    } else if (cursor >= frac(MAX_T)) {
+      setState(Model.stateForIndex(snaps, snaps.length - 1));
+      stopPlay();
+      return;
+    } else {
+      var t = scale.fracToT(cursor);
+      var idx = Model.indexAtT(snaps, t);
+      if (idx >= 0 && Model.yearOf(t) !== Model.yearOf(state.t)) setState({ idx: idx, t: Model.yearT(Model.yearOf(t)), hasMonth: false }, { silent: true });
     }
     raf = requestAnimationFrame(tick);
   }
