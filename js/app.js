@@ -136,7 +136,7 @@
     if (sig !== renderedSig) {
       var newSnap = renderedSig.split('|')[0] !== String(st.idx);
       renderedSig = sig;
-      map.render(vis, prevFeaturesFor(st.idx));
+      map.render(vis, prevFeaturesFor(st.idx), { sceneChanged: newSnap });
       renderLegend(vis);
       if (newSnap) renderPanel(snap);
       else markCurrentEvent();

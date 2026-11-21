@@ -172,6 +172,24 @@ await check('기원전 107년~312년: 대동강 유역에 나라 면 없음', as
 await check('1900년: 간도는 빗금 영역(영토 색 아님)', async () => { await open('year=1900'); return ev(`
   const g = document.querySelector('#map g.polity.zone');
   return (!!g && /url\\(#zone-/.test(g.querySelector('path').getAttribute('fill')) && !!document.querySelector('.swatch.zone')) || 'no';`); });
+await check('장면 안에서 땅 주인이 바뀌면 그 조각만 색이 넘어가고 테두리가 반짝임(494→495년 부여)', async () => {
+  await open('year=494');
+  return ev(`${H}
+    const sc = Model.makeScale(ATLAS.eras, Model.yearT(Model.MIN_YEAR), Model.yearT(Model.MAX_YEAR, 12));
+    const tr = $('track'), r = tr.getBoundingClientRect(), f = (sc.yearToFrac(495) + sc.yearToFrac(496)) / 2;
+    const o = { clientX: r.left + f * r.width, clientY: r.top + 10, pointerId: 3, bubbles: true };
+    tr.dispatchEvent(new PointerEvent('pointerdown', o)); tr.dispatchEvent(new PointerEvent('pointerup', o)); await sleep(60);
+    const a = document.getAnimations().map((x) => x.effect.target);
+    const fills = a.filter((t) => t.closest('.fills')).length, pulses = a.filter((t) => t.classList.contains('fx-pulse')).length;
+    await sleep(1400);
+    const left = document.querySelectorAll('#map .fx-pulse, #map .ghosts > *').length;
+    return (time() === '495년' && fills === 1 && pulses === 1 && left === 0) || { t: time(), fills, pulses, left };`);
+});
+await check('장면이 바뀌면 옛 지도가 서서히 사라지고 남지 않음', () => ev(`${H}
+  $('next').click(); await sleep(60);
+  const ghosts = document.querySelectorAll('#map .ghosts > *').length;
+  await sleep(900);
+  return (ghosts > 0 && document.querySelectorAll('#map .ghosts > *').length === 0) || ghosts;`));
 await check('패널 접기', () => ev(`${H} $('panel-toggle').click(); await sleep(350); return $('app').classList.contains('panel-closed');`));
 await check('지도 확대', () => ev(`${H} const a = $('viewport').getAttribute('transform'); $('zoom-in').click(); return a !== $('viewport').getAttribute('transform');`));
 

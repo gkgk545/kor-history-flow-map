@@ -4,6 +4,9 @@
  * - confidence "논쟁" 도형은 Model.edgeStyle 규칙대로 점선 테두리를 덧그린다.
  * - 이름표는 확대해도 글자 크기가 변하지 않도록 화면 좌표의 HTML로 올린다.
  * - kind "zone"(간도처럼 영토가 아닌 영역)은 영토 색 대신 옅은 빗금과 점선으로만 그린다.
+ * - 지도가 바뀔 때는 바뀐 땅만 움직인다. 좌표가 같은 조각은 같은 땅으로 보고,
+ *   주인이 바뀌면 색만 옛 나라 색에서 새 나라 색으로 넘어가고(테두리가 한 번 반짝임),
+ *   새로 생긴 조각은 나타나고 없어진 조각은 서서히 사라진다. 그대로인 땅은 움직이지 않는다.
  */
 (function () {
   'use strict';
@@ -132,7 +135,9 @@
     });
     var clipped = el('g', { 'clip-path': 'url(#land-clip)' }, this.root);
     this.gFill = el('g', { class: 'fills' }, clipped);
+    this.gGhost = el('g', { class: 'ghosts' }, clipped); // 사라지는 조각(잠깐)
     this.gEdges = el('g', { class: 'edges' }, clipped);
+    this.gFx = el('g', { class: 'fx' }, clipped); // 바뀐 땅 테두리 반짝임(잠깐)
     this.gPrev = el('g', { class: 'prev' }, clipped);
     this.gLines = el('g', { class: 'lines' }, clipped);
     this.gHl = el('g', { class: 'hl' }, clipped);
@@ -195,14 +200,35 @@
     return 'url(#' + id + ')';
   };
 
+  // 조각을 알아보는 열쇠: 좌표가 같으면 같은 땅
+  function sigOf(f) {
+    if (!f.__sig) Object.defineProperty(f, '__sig', { value: JSON.stringify(f.geometry.coordinates) });
+    return f.__sig;
+  }
+  var ENTER_MS = 500, COLOR_MS = 700, PULSE_MS = 1100;
+  function reducedMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function canAnimate(node) { return typeof node.animate === 'function'; }
+  // 애니메이션이 끝나면 지운다(창이 가려져 애니메이션 시계가 멈춰도 타이머로 한 번 더)
+  function removeLater(node, a, ms) {
+    function rm() { if (node.parentNode) node.parentNode.removeChild(node); }
+    a.onfinish = rm;
+    setTimeout(rm, ms + 200);
+  }
+
   /*
    * 그리기
    *   features: 지금 보이는 도형
    *   prevFeatures: 바로 앞 스냅샷의 마지막 모습 (점선)
+   *   opts.sceneChanged: 장면이 바뀌었는가 (같은 장면 안에서 조각만 바뀌면 false)
    */
-  MapView.prototype.render = function (features, prevFeatures) {
+  MapView.prototype.render = function (features, prevFeatures, opts) {
     var self = this;
-    [this.gFill, this.gEdges, this.gPrev, this.gLines, this.gHl].forEach(function (g) { g.textContent = ''; });
+    opts = opts || {};
+    [this.gFill, this.gEdges, this.gPrev, this.gLines, this.gHl, this.gGhost].forEach(function (g) { g.textContent = ''; });
+    var anim = !!this.rendered && !reducedMotion() && canAnimate(this.svg);
+    var last = this._lastPieces || new Map();
+    var nowPieces = new Map();
+    var pulses = [];
     this.labels = [];
     this.islets = [];
     this.groups = {};
@@ -231,12 +257,32 @@
       var pol = self.atlas.polities[colorName] || {};
       var isZone = p0.kind === 'zone';
       var fill = isZone ? self._zoneHatch(color) : pol.pattern === 'hatch' ? self._hatch(color) : color;
-      var g = el('g', { class: 'polity ' + (isZone ? 'zone' : p0.role) + (self.rendered ? ' layer-enter' : ''), 'data-name': name }, self.gFill);
+      var gCls = 'polity ' + (isZone ? 'zone' : p0.role);
+      var g = el('g', { class: gCls, 'data-name': name }, self.gFill);
       if (!isZone) g.setAttribute('filter', 'url(#soft)');
       self.groups[name] = { g: g, features: fs, color: color, role: p0.role, fillAs: p0.fillAs || null };
       fs.forEach(function (f) {
-        var path = el('path', { d: geomD(f.geometry), fill: fill }, g);
+        var d = geomD(f.geometry);
+        var path = el('path', { d: d, fill: fill }, g);
         path.__feature = f;
+        var sig = sigOf(f);
+        nowPieces.set(sig, { d: d, fill: fill, cls: gCls, soft: !isZone });
+        if (!anim) return;
+        var old = last.get(sig);
+        if (!old) {
+          // 새로 생긴 조각: 나타난다. 같은 장면 안에서 생긴 우리 역사 나라 땅이면 테두리도 반짝인다
+          path.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ENTER_MS, easing: 'ease-out' });
+          if (!opts.sceneChanged && p0.role === 'korea' && !isZone && !p0.fillAs) pulses.push({ d: d, color: color });
+        } else if (old.fill !== fill) {
+          // 같은 땅의 주인이 바뀜: 색이 넘어간다(무늬 칠은 겹쳐 바뀜)
+          if (old.fill.indexOf('url(') < 0 && fill.indexOf('url(') < 0) {
+            path.animate([{ fill: old.fill }, { fill: fill }], { duration: COLOR_MS, easing: 'ease-in-out' });
+          } else {
+            path.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ENTER_MS, easing: 'ease-out' });
+            self._ghost(old);
+          }
+          if (p0.role === 'korea' && !isZone && !p0.fillAs) pulses.push({ d: d, color: color });
+        }
       });
       // 논쟁 도형: 점선 테두리 (Model.edgeStyle 규칙)
       fs.forEach(function (f) {
@@ -262,6 +308,13 @@
         self.labels[self.labels.length - 1].at = self.islets[self.islets.length - 1].at;
       }
     });
+
+    // 없어진 조각은 서서히 사라지고, 바뀐 땅은 테두리가 한 번 반짝인다
+    if (anim) {
+      last.forEach(function (old, sig) { if (!nowPieces.has(sig)) self._ghost(old); });
+      pulses.forEach(function (p) { self._pulse(p.d, p.color); });
+    }
+    this._lastPieces = nowPieces;
 
     // 바로 앞 스냅샷 경계 (우리 역사 나라만)
     if (prevFeatures && prevFeatures.length) {
@@ -292,6 +345,25 @@
     this._buildLabels();
     this._applyView();
     this.setHighlight(this.highlight && this.groups[this.highlight] ? this.highlight : null);
+  };
+
+  // 지난 그림의 조각을 잠깐 위에 두고 투명하게 만든 뒤 지운다
+  MapView.prototype._ghost = function (old) {
+    var g = el('g', { class: old.cls + ' ghost' }, this.gGhost);
+    if (old.soft) g.setAttribute('filter', 'url(#soft)');
+    el('path', { d: old.d, fill: old.fill }, g);
+    var a = g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ENTER_MS, easing: 'ease-in', fill: 'forwards' });
+    removeLater(g, a, ENTER_MS);
+  };
+  // 바뀐 땅의 테두리: 굵게 나타났다가 사라짐 (화면 기준 굵기)
+  MapView.prototype._pulse = function (d, color) {
+    var p = el('path', { class: 'fx-pulse', d: d, stroke: shade(color, -0.3), 'vector-effect': 'non-scaling-stroke' }, this.gFx);
+    var a = p.animate([
+      { opacity: 0, strokeWidth: 1 },
+      { opacity: 1, strokeWidth: 5, offset: 0.25 },
+      { opacity: 0, strokeWidth: 2 },
+    ], { duration: PULSE_MS, easing: 'ease-out', fill: 'forwards' });
+    removeLater(p, a, PULSE_MS);
   };
 
   MapView.prototype.setShowPrev = function (on) {

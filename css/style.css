@@ -86,9 +86,9 @@ button { font: inherit; color: inherit; }
 #map.has-hl .polity { opacity: 0.18; }
 #map.has-hl .polity.hl { opacity: 0.85; }
 #map.has-hl .islet:not(.hl) { opacity: 0.3; }
-.layer-enter { animation: fadein 0.35s ease-out; }
-@keyframes fadein { from { opacity: 0.15; } }
-@media (prefers-reduced-motion: reduce) { .layer-enter { animation: none; } * { transition: none !important; } }
+.fx-pulse { fill: none; stroke-linejoin: round; pointer-events: none; }
+#map .ghost { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 /* 지도 이름표 (화면 좌표) */
 #map-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
