@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="초등 사회 수업용 인터랙티브 한국사 영역 타임라인 (375년~오늘날)">
+<title>한국사 영역 타임라인</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <h1>한국사 영역 타임라인</h1>
+      <p class="sub">375년부터 오늘날까지, 나라들의 세력 범위</p>
+    </div>
+    <div class="top-now" aria-live="polite">
+      <span id="top-era" class="era-chip"></span>
+      <span id="top-time" class="top-time"></span>
+    </div>
+  </header>
+
+  <main id="workspace">
+    <section id="map-wrap" aria-label="지도">
+      <svg id="map" role="img" aria-label="한반도와 만주의 나라 세력 범위 지도"></svg>
+      <div id="map-labels" aria-hidden="true"></div>
+
+      <div id="legend" class="card">
+        <button id="legend-toggle" class="legend-head" aria-expanded="true">
+          <span id="legend-title">이 시기의 나라</span><span class="chev" aria-hidden="true">▾</span>
+        </button>
+        <div id="legend-body">
+          <ul id="legend-list"></ul>
+          <ul id="legend-neighbors"></ul>
+          <label class="toggle">
+            <input type="checkbox" id="prev-toggle" checked>
+            <span>바로 앞 장면 경계(빨간 점선)</span>
+          </label>
+          <p class="legend-note"><span class="dash-sample" aria-hidden="true"></span> 학자마다 생각이 다른 경계</p>
+        </div>
+      </div>
+
+      <div id="hint" class="hint" role="note">
+        <span>아래 막대를 움직이거나 ▶를 눌러 보세요</span>
+        <button id="hint-close" class="icon-btn small" aria-label="안내 닫기">✕</button>
+      </div>
+
+      <p id="map-disclaimer" class="disclaimer">세력 범위는 대략적인 모습입니다.</p>
+
+      <div id="zoom" class="zoom">
+        <button id="zoom-in" class="icon-btn" aria-label="지도 크게">＋</button>
+        <button id="zoom-out" class="icon-btn" aria-label="지도 작게">－</button>
+        <button id="zoom-reset" class="icon-btn" aria-label="지도 처음 크기로">⟲</button>
+      </div>
+
+      <div id="tooltip" class="tooltip" hidden></div>
+    </section>
+
+    <button id="panel-toggle" class="panel-toggle" aria-controls="panel" aria-expanded="true" aria-label="설명 패널 접기">
+      <span aria-hidden="true">›</span>
+    </button>
+
+    <aside id="panel" aria-label="시대 설명">
+      <div class="panel-inner">
+        <p id="panel-era" class="era-chip"></p>
+        <h2 id="panel-caption"></h2>
+        <p id="panel-period" class="period"></p>
+        <p id="panel-summary" class="summary"></p>
+
+        <div id="polity-box" class="polity-box" hidden>
+          <div class="polity-head">
+            <span id="polity-swatch" class="swatch"></span>
+            <strong id="polity-name"></strong>
+            <button id="polity-close" class="icon-btn small" aria-label="나라 소개 닫기">✕</button>
+          </div>
+          <p id="polity-intro"></p>
+        </div>
+
+        <h3>주요 사건</h3>
+        <ol id="panel-events" class="events"></ol>
+
+        <h3>생각해 볼 질문</h3>
+        <div id="panel-questions" class="questions"></div>
+
+        <p class="disclaimer panel-disclaimer">세력 범위는 대략적인 모습입니다. 옛 나라의 영역은 정해진 국경이 아니라 힘이 미친 범위예요. 점선은 학자마다 생각이 다른 경계예요.</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer id="timeline">
+    <div class="tl-controls left">
+      <button id="play" class="icon-btn big" aria-label="재생">▶</button>
+      <button id="speed" class="icon-btn speed" aria-label="재생 빠르기 1배">1×</button>
+    </div>
+    <button id="prev" class="icon-btn step" aria-label="이전 장면">◀</button>
+    <div id="track-wrap">
+      <div id="bubble" class="bubble" aria-hidden="true"></div>
+      <div id="track" role="slider" tabindex="0" aria-label="연도" aria-valuemin="375" aria-valuemax="2026" aria-valuenow="375">
+        <div id="bands"></div>
+        <div id="ticks"></div>
+        <div id="thumb"><span class="grip" aria-hidden="true"></span></div>
+      </div>
+      <div id="axis" aria-hidden="true"></div>
+    </div>
+    <button id="next" class="icon-btn step" aria-label="다음 장면">▶</button>
+  </footer>
+</div>
+
+<script src="data/data.js"></script>
+<script src="js/model.js"></script>
+<script src="js/map.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

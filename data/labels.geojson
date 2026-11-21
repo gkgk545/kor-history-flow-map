@@ -1,0 +1,12 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","properties":{"kind":"sea","name":"동해"},"geometry":{"type":"Point","coordinates":[130.4,39.0]}},
+{"type":"Feature","properties":{"kind":"sea","name":"황해"},"geometry":{"type":"Point","coordinates":[123.9,36.4]}},
+{"type":"Feature","properties":{"kind":"sea","name":"남해"},"geometry":{"type":"Point","coordinates":[128.2,34.2]}},
+{"type":"Feature","properties":{"kind":"river","name":"압록강"},"geometry":{"type":"Point","coordinates":[125.05,40.78]}},
+{"type":"Feature","properties":{"kind":"river","name":"두만강"},"geometry":{"type":"Point","coordinates":[129.25,42.55]}},
+{"type":"Feature","properties":{"kind":"river","name":"대동강"},"geometry":{"type":"Point","coordinates":[126.25,39.45]}},
+{"type":"Feature","properties":{"kind":"river","name":"한강"},"geometry":{"type":"Point","coordinates":[127.35,37.66]}},
+{"type":"Feature","properties":{"kind":"river","name":"낙동강"},"geometry":{"type":"Point","coordinates":[128.55,36.62]}},
+{"type":"Feature","properties":{"kind":"river","name":"요하"},"geometry":{"type":"Point","coordinates":[122.35,41.9]}},
+{"type":"Feature","properties":{"kind":"river","name":"송화강"},"geometry":{"type":"Point","coordinates":[127.7,46.2]}}
+]}

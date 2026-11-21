@@ -1,0 +1,45 @@
+{
+  "type": "object",
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "type": "string",
+            "description": "스냅샷 키(예: 475, 1950-08) 또는 전체에 해당하면 \"전체\""
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "issue": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          },
+          "principle": {
+            "type": "string",
+            "description": "어긴 원칙 또는 기준(예: 연대 정확성, 제외 서술, 글 수준)"
+          }
+        },
+        "required": [
+          "snapshot",
+          "severity",
+          "issue",
+          "suggestion",
+          "principle"
+        ]
+      }
+    }
+  },
+  "required": [
+    "findings"
+  ]
+}
