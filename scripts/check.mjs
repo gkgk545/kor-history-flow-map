@@ -126,7 +126,7 @@ for (const [key, fc] of Object.entries(geo)) {
 // 수준별 글 규칙 (명세 spec-middle.md '글 기준')
 const LEVEL_RULES = {
   elementary: { name: '초등', sentences: [2, 3], events: [3, 5], questions: [1, 2] },
-  middle: { name: '중등', sentences: [3, 4], events: [4, 6], questions: [1, 2] },
+  middle: { name: '중등', sentences: [3, 4], events: [4, 8], questions: [1, 2] },
 };
 const missingMiddle = { snapshots: [], polities: [] };
 for (const [name, p] of Object.entries(content.polities)) {
@@ -153,6 +153,11 @@ for (const s of snaps) {
     if (!Array.isArray(x.events) || x.events.length < R.events[0] || x.events.length > R.events[1]) fail(`${wl}: 사건은 ${R.events.join('~')}개 (지금 ${x.events?.length ?? 0}개)`);
     (x.events || []).forEach((e) => { if (!Model.parseKey(e.year) || !e.text) fail(`${wl}: 사건 형식 오류 ${JSON.stringify(e)}`); });
     if (!Array.isArray(x.questions) || x.questions.length < R.questions[0] || x.questions.length > R.questions[1]) fail(`${wl}: 탐구 질문은 ${R.questions.join('~')}개`);
+  }
+  // 중등 사건은 초등 사건을 모두 담는다(같은 연도로)
+  if (s.elementary && s.middle) {
+    const mid = new Set((s.middle.events || []).map((e) => e.year));
+    for (const e of s.elementary.events || []) if (!mid.has(e.year)) fail(`${w}: 초등 사건 ${e.year} "${e.text}"이 중등 사건에 없음`);
   }
 }
 // 문장 길이 (초등 30자 안팎, 중등 50자 안팎) — 요약 문장 평균과 가장 긴 문장
