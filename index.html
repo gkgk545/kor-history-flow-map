@@ -40,6 +40,10 @@
             <span>도읍·전투 보기 <span class="pt-sample capital" aria-hidden="true"></span><span class="pt-sample battle" aria-hidden="true"></span></span>
           </label>
           <label class="toggle">
+            <input type="checkbox" id="relief-toggle" checked>
+            <span>산과 들의 높낮이 보기</span>
+          </label>
+          <label class="toggle">
             <input type="checkbox" id="prev-toggle" checked>
             <span>바로 앞 장면 경계(빨간 점선)</span>
           </label>
@@ -53,6 +57,7 @@
       </div>
 
       <p id="map-disclaimer" class="disclaimer">세력 범위는 대략적인 모습입니다.</p>
+      <p id="map-credit" class="map-credit">지형 자료: USGS(SRTM·GMTED2010), NOAA(ETOPO1), Mapzen Terrain Tiles</p>
 
       <div id="zoom" class="zoom">
         <button id="zoom-in" class="icon-btn" aria-label="지도 크게">＋</button>

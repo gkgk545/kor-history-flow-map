@@ -36,6 +36,7 @@
 | 설명 패널 | 패널 왼쪽 가장자리의 › 탭으로 접고 편다 |
 | 사건으로 가기 | 오른쪽 패널의 사건을 누르면 그 시점으로 간다. 사건이 도읍·전투 자리와 이어져 있으면(예: 612년 → 살수 대첩) 지도 위 그 자리가 동심원으로 반짝이고 이름이 잠깐 보인다(점 층을 꺼 두어도 보임) |
 | 장면 제목 | 장면이 바뀌면 지도 위쪽에 시대·제목·기간이 2초 동안 뜬다 |
+| 지형 보기 | 범례의 "산과 들의 높낮이 보기" 상자(기본은 켜짐). 나라 색 위에 언덕 음영을 얹어 산줄기를 보인다. 끄면 지도 오른쪽 아래의 지형 자료 출처도 숨긴다 |
 | 발표 모드 | 오른쪽 위 "발표 모드" 버튼. 패널·범례를 접고 이름표와 연도를 크게, 장면 제목을 지도 왼쪽 아래에 크게 둔다. 다시 누르면 원래대로 |
 
 화면은 전자칠판(1920×1080), 태블릿 가로(1024×768, 1180×820), 크롬북(1366×768)에 맞췄다. 휴대폰 세로 화면은 대상이 아니다(가로 화면 권장).
@@ -139,8 +140,9 @@ node scripts/screenshots.mjs
 ```
 
 - `build-data.mjs`: `data/*.geojson`, `data/content.json` → `data/data.js`. `--ne <Natural Earth 폴더>`를 주면 바탕 지도도 다시 자른다.
+- `build-hillshade.mjs <타일 폴더>`: Terrain Tiles 64장 → `data/hillshade.png`(지형 음영). 타일은 저장소에 없으므로 다시 만들 때만 받는다(받는 곳은 `data/SOURCES.md`).
 - `check.mjs`: GeoJSON 유효성, 모든 연도·월의 장면 유무, 필수 속성, 0년 없는 연도 계산과 연도↔막대 위치 변환, 수준별 글 규칙(문장 수·길이, 사건·질문 개수, 성취기준), 도읍·전투 점, 존속 연도와 장면 범위, 표기 원칙(수준별 금지어, 고조선·간도·한 군현 자리), 외부 요청 여부를 검사한다.
-- `interact-check.mjs`: 시스템 Chrome 헤드리스를 DevTools 프로토콜로 조작해 file://에서 장면 이동, 막대, 재생, 딥링크(기원전·수준), 점 층, 수준 전환, 4개 해상도의 48px 조작 요소 등 50항목을 확인한다.
+- `interact-check.mjs`: 시스템 Chrome 헤드리스를 DevTools 프로토콜로 조작해 file://에서 장면 이동, 막대, 재생, 딥링크(기원전·수준), 점 층, 수준 전환, 4개 해상도의 48px 조작 요소 등 52항목을 확인한다.
 - `screenshots.mjs`: 해상도별 레이아웃(초등·중등)과 장면별 지도 스크린샷을 `review/`에 만든다.
 - 나라 도형의 원본은 `scripts/draft-shapes.mjs`(공유 경계선을 이어 붙여 만듦)다. 고친 뒤 `node scripts/draft-shapes.mjs data`로 `data/s-*.geojson`을 다시 만든다. 도읍·전투 점의 원본은 `scripts/points-src.mjs`다.
 - Gemini 검토 입력은 `node scripts/review-input.mjs`, 한 회 실행은 `sh scripts/review-run.sh <history|text> <elementary|middle>`.
@@ -164,10 +166,10 @@ git push -u origin main
 
 3. 저장소의 **Settings → Pages**에서 Source를 **Deploy from a branch**, Branch를 `main` / `/(root)`로 고르고 저장한다.
 4. 1~2분 뒤 `https://<계정>.github.io/korean-history-timeline/`에서 열린다. 빌드 단계는 없다(`data/data.js`가 커밋되어 있어야 한다).
-5. 라이선스는 아직 정하지 않았다. 공개하기 전에 정한다(바탕 지도 Natural Earth는 퍼블릭 도메인).
+5. 라이선스는 아직 정하지 않았다. 공개하기 전에 정한다(바탕 지도 Natural Earth는 퍼블릭 도메인, 지형 음영의 Terrain Tiles는 출처 표기 조건).
 
 ## 만들지 않은 것
 
-고조선 이전(선사 시대), 군현·행정구역, 이동 경로와 화살표, 화면 안의 수준 전환 버튼, '넘기는 막대 + 위쪽 전체 띠' 방식의 막대(교사가 써 본 뒤 필요하면 만듦), 퀴즈, 음성, 다국어, 검색, 지형 음영, 타임라인 자르기, 임베드, 학생 입력 저장, 휴대폰 세로 화면.
+고조선 이전(선사 시대), 군현·행정구역, 이동 경로와 화살표, 화면 안의 수준 전환 버튼, '넘기는 막대 + 위쪽 전체 띠' 방식의 막대(교사가 써 본 뒤 필요하면 만듦), 퀴즈, 음성, 다국어, 검색, 타임라인 자르기, 임베드, 학생 입력 저장, 휴대폰 세로 화면.
 
 참고한 앱: [DeanChensj/jiangshan-map](https://github.com/DeanChensj/jiangshan-map)의 화면 배치와 조작감만 참고했다. 코드와 데이터는 한 줄도 가져오지 않았다.

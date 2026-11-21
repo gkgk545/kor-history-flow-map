@@ -561,6 +561,10 @@
   $('hint-close').addEventListener('click', dismissHint);
   $('prev-toggle').addEventListener('change', function (e) { map.setShowPrev(e.target.checked); });
   $('points-toggle').addEventListener('change', function (e) { showPoints = e.target.checked; renderPoints(); });
+  $('relief-toggle').addEventListener('change', function (e) {
+    map.setRelief(e.target.checked);
+    $('map-credit').hidden = !e.target.checked; // 지형을 끄면 지형 자료 출처도 숨긴다
+  });
   $('legend-toggle').addEventListener('click', function () {
     var c = $('legend').classList.toggle('collapsed');
     $('legend-toggle').setAttribute('aria-expanded', c ? 'false' : 'true');

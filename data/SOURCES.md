@@ -27,6 +27,27 @@
 
 Natural Earth 1:10m 하천 자료에 대동강이 없다. 그래서 `rivers-schematic.geojson`에 꼭짓점 8개짜리 도식선을 직접 그렸다. 기준점은 낭림산맥 남쪽 발원 부근, 덕천, 순천, 평양, 남포 하구다. 화면에서는 점선 하천으로 구분해 보인다.
 
+## 지형 음영 — Terrain Tiles
+
+| 항목 | 내용 |
+|---|---|
+| 자료 | Mapzen Terrain Tiles(AWS 공개 데이터 `elevation-tiles-prod`), terrarium PNG, 줌 7, x 104~111 · y 44~51 (64장, 4.2MB) |
+| 원자료 | 이 범위는 SRTM·GMTED2010(미국 지질조사국 USGS), ETOPO1(미국 해양대기청 NOAA) |
+| 이용 조건 | 출처 표기 조건으로 자유 이용. 표기 문구: "Mapzen; SRTM·GMTED2010 courtesy of the U.S. Geological Survey; ETOPO1 U.S. National Oceanic and Atmospheric Administration" (tilezen/joerd `docs/attribution.md`) |
+| 받은 날 | 2026-11-21, 한 번만 받음 |
+| 받은 곳 | `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/7/<x>/<y>.png` |
+| SHA-256 | 타일 64장을 x 오름차순, 그 안에서 y 오름차순으로 이어 붙인 것 `7767851cfc817ff27711c26b3bfe345ac41403251082958ec6c10ee6a2ac09e7` |
+
+- 원본 타일은 저장소에 넣지 않았다. 만든 결과만 `hillshade.png`(1365×1437, 회색+알파, 약 780KB)로 넣었다.
+- 화면에는 지도 오른쪽 아래에 "지형 자료: USGS(SRTM·GMTED2010), NOAA(ETOPO1), Mapzen Terrain Tiles"로 표기한다. 지형을 끄면 이 표기도 숨긴다.
+
+### 가공 (`scripts/build-hillshade.mjs <타일 폴더>`)
+
+1. PNG를 의존성 없는 Node 코드로 읽고, 고도 = R×256 + G + B/256 − 32768(m)로 푼다. 3,100m 넘는 튀는 값은 자른다.
+2. 언덕 음영을 계산한다. 빛은 북서(315°)에서 45° 높이로 비추고, 고도는 3배로 과장한다. 경사는 위도에 따른 화소 크기를 반영한 3×3 Sobel 차분으로 구한다.
+3. 평지보다 어두운 면은 검정(최대 진하기 0.62), 밝은 면은 흰색(최대 0.42)으로 두고 진하기를 알파로 쓴다. 바다(고도 0 이하)는 투명하다.
+4. 경도 115~135°, 위도 32~48°로 잘라 0.75배로 줄인다. 앱은 이 이미지를 메르카토르 세계 좌표에 그대로 펴서, 나라 색 위·경계선 아래에 육지 모양으로 잘라 그린다.
+
 ## 나라 영역 — 새로 그린 도식 폴리곤
 
 - 기존 역사 경계 데이터셋은 쓰지 않았다. aourednik/historical-basemaps, CHGIS, 참고 앱(jiangshan-map)의 GeoJSON 모두 쓰지 않았다.
@@ -57,6 +78,7 @@ Natural Earth 1:10m 하천 자료에 대동강이 없다. 그래서 `rivers-sche
 |---|---|
 | `s-<키>.geojson` | 스냅샷별 나라 도형(RFC 7946). 키는 연도(`475`)나 연-월(`1950-08`). 기원전 키는 음수 기호 대신 `m`(키 `-108` → `s-m108.geojson`) |
 | `content.json` | 시대 띠(너비 몫 `weight`), 스냅샷 글(초등 `elementary`·중등 `middle` 두 벌: 캡션·요약·사건·질문), 성취기준 `standards`, 나라 소개(두 벌)와 색 |
+| `hillshade.png` | 지형 음영(회색+알파, 바탕 지도 범위 메르카토르). `scripts/build-hillshade.mjs`가 만든다 |
 | `points.geojson` | 도읍·전투 점(이름·종류·start/end·설명 두 벌·confidence·basis) |
 | `labels.geojson` | 바다·하천 이름표 위치 |
 | `base-land.geojson`, `base-rivers.geojson` | Natural Earth에서 자른 바탕 지도 |

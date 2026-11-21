@@ -207,6 +207,22 @@ await check('사건을 누르면 그 자리가 반짝임(612년 → 살수 대�
     await sleep(3200);
     return (names.join() === '살수 대첩' && !document.querySelector('#map .flash')) || names;`);
 });
+await check('지형 음영: 이미지가 읽히고 바탕 지도 범위를 덮으며, 끄면 음영·출처가 함께 숨음', async () => {
+  await open('year=553');
+  return ev(`${H}
+    const im = document.querySelector('#map .relief');
+    const img = new Image(); img.src = 'data/hillshade.png';
+    await new Promise((r) => { img.onload = r; img.onerror = r; setTimeout(r, 3000); });
+    const bb = im.getBBox(), sea = document.querySelector('#map rect.sea').getBBox();
+    const loaded = img.naturalWidth > 1000, covers = Math.abs(bb.width - sea.width) < 0.5 && Math.abs(bb.height - sea.height) < 0.5;
+    const order = im.previousElementSibling && im.previousElementSibling.classList.contains('ghosts') && im.nextElementSibling.classList.contains('edges');
+    const creditOn = !$('map-credit').hidden && $('map-credit').getBoundingClientRect().width > 0;
+    $('relief-toggle').click(); await sleep(50);
+    const off = getComputedStyle(im).display === 'none' && $('map-credit').hidden;
+    $('relief-toggle').click(); await sleep(50);
+    const back = getComputedStyle(im).display !== 'none' && !$('map-credit').hidden;
+    return (loaded && covers && order && creditOn && off && back) || { loaded, covers, order, creditOn, off, back };`);
+});
 await check('다른 사건을 누르면 앞 사건의 반짝임이 바로 사라짐(612 → 다른 해)', async () => {
   await open('year=600');
   return ev(`${H}

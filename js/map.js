@@ -136,6 +136,9 @@
     var clipped = el('g', { 'clip-path': 'url(#land-clip)' }, this.root);
     this.gFill = el('g', { class: 'fills' }, clipped);
     this.gGhost = el('g', { class: 'ghosts' }, clipped); // 사라지는 조각(잠깐)
+    // 지형 음영: 바탕 지도 범위(경도 115~135°, 위도 32~48°)를 메르카토르로 편 회색+알파 이미지(data/hillshade.png).
+    // 나라 색 위, 경계선 아래에 얹어 색과 경계는 그대로 두고 산줄기만 드러낸다
+    this.relief = el('image', { class: 'relief', href: 'data/hillshade.png', x: 0, y: 0, width: 1000, height: WORLD_H, preserveAspectRatio: 'none' }, clipped);
     this.gEdges = el('g', { class: 'edges' }, clipped);
     this.gFx = el('g', { class: 'fx' }, clipped); // 바뀐 땅 테두리 반짝임(잠깐)
     this.gPrev = el('g', { class: 'prev' }, clipped);
@@ -505,6 +508,11 @@
       mine.forEach(function (o) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); });
       if (self.flashEls === mine) self.flashEls = [];
     }, 3000);
+  };
+
+  /** 지형 음영 켜기·끄기 */
+  MapView.prototype.setRelief = function (on) {
+    this.relief.style.display = on ? '' : 'none';
   };
 
   // ---------- 보기 범위 ----------

@@ -489,6 +489,25 @@ if (html) {
     else if (!fs.existsSync(path.join(ROOT, m[3].split('?')[0]))) fail(`index.html: 없는 파일 ${m[3]}`);
   }
 }
+// 지형 음영 이미지: 저장소 안 파일, 바탕 지도 범위 비율, 출처 표기
+{
+  const f = path.join(DATA, 'hillshade.png');
+  const mapJs = read('js/map.js');
+  if (!/href:\s*'data\/hillshade\.png'/.test(mapJs)) fail('js/map.js가 data/hillshade.png를 쓰지 않음');
+  if (!fs.existsSync(f)) fail('data/hillshade.png 없음 — node scripts/build-hillshade.mjs <타일 폴더>');
+  else {
+    const b = fs.readFileSync(f);
+    const w = b.readUInt32BE(16), h = b.readUInt32BE(20), ct = b[25];
+    const mY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+    const want = (mY(48) - mY(32)) / ((20 * Math.PI) / 180); // 세로/가로 (메르카토르, 경도 115~135°, 위도 32~48°)
+    if (b.toString('ascii', 1, 4) !== 'PNG' || ct !== 4) fail('data/hillshade.png가 회색+알파 PNG가 아님');
+    if (Math.abs(h / w - want) > 2 / w) fail(`data/hillshade.png 비율 ${(h / w).toFixed(4)} ≠ 바탕 지도 ${want.toFixed(4)}`);
+    if (b.length > 1024 * 1024) fail(`data/hillshade.png ${(b.length / 1024).toFixed(0)}KB > 1MB`);
+    note(`data/hillshade.png ${w}×${h}, ${(b.length / 1024).toFixed(0)}KB`);
+  }
+  if (html && !/id="map-credit"[^>]*>[^<]*SRTM[^<]*ETOPO1[^<]*Mapzen/.test(html)) fail('지도 위 지형 자료 출처(#map-credit)가 없음');
+  if (!/Terrain Tiles/.test(read('data/SOURCES.md'))) fail('data/SOURCES.md에 지형 자료 출처가 없음');
+}
 // data.js가 원본과 같은지
 if (fs.existsSync(path.join(DATA, 'data.js'))) {
   const c2 = { window: {} };
