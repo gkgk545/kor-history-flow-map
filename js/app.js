@@ -522,7 +522,7 @@
     var hits = (A.points || []).filter(function (f) {
       return Model.isVisible(f, state.t) && pointKeys(f.properties.name).some(function (k) { return ev.text.indexOf(k) >= 0; });
     });
-    if (hits.length) map.flash(hits);
+    map.flash(hits); // 이어진 자리가 없어도 부른다: 이전 사건의 반짝임을 바로 지운다
   }
 
   // ---------- 발표 모드 ----------

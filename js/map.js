@@ -485,6 +485,8 @@
   MapView.prototype.flash = function (features) {
     var self = this;
     (this.flashEls || []).forEach(function (o) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); });
+    this.flashEls = [];
+    if (!features.length) return;
     var still = reducedMotion() || !canAnimate(this.svg);
     this.flashEls = features.map(function (f) {
       var g = el('g', { class: 'flash' }, self.gFlash);

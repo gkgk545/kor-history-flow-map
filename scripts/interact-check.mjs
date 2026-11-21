@@ -207,6 +207,16 @@ await check('사건을 누르면 그 자리가 반짝임(612년 → 살수 대�
     await sleep(3200);
     return (names.join() === '살수 대첩' && !document.querySelector('#map .flash')) || names;`);
 });
+await check('다른 사건을 누르면 앞 사건의 반짝임이 바로 사라짐(612 → 다른 해)', async () => {
+  await open('year=600');
+  return ev(`${H}
+    const btns = [...document.querySelectorAll('#panel-events button')];
+    btns.find((b) => b.dataset.year === '612').click(); await sleep(100);
+    const before = document.querySelectorAll('#map .flash').length;
+    const other = btns.find((b) => b.dataset.year !== '612'); other.click(); await sleep(50);
+    const left = [...document.querySelectorAll('#map .flash text')].map((t) => t.textContent).filter((n) => n === '살수 대첩');
+    return (before > 0 && left.length === 0) || { before, left, other: other.dataset.year };`);
+});
 await check('나라 이름표 크기가 영역 넓이를 따름(480년 고구려 > 백제 > 신라)', async () => {
   await open('year=480');
   return ev(`
