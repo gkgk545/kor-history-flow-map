@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // 시스템 Chrome 헤드리스로 검토용 스크린샷을 review/ 에 만든다 (의존성 없음)
-//   node scripts/screenshots.mjs            해상도별 레이아웃 + 스냅샷별 지도
+//   node scripts/screenshots.mjs                      해상도별 레이아웃(초등·중등) + 스냅샷별 지도(초등)
+//   node scripts/screenshots.mjs layout [middle]      레이아웃만 (수준을 주면 그 수준만)
+//   node scripts/screenshots.mjs snapshots [middle]   스냅샷만 (middle이면 snap-<키>-middle.png)
 //   CHROME=/path/to/chrome node scripts/screenshots.mjs
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -27,13 +29,19 @@ function shot(file, w, h, q) {
 
 fs.mkdirSync(OUT, { recursive: true });
 const only = process.argv[2];
+const levelArg = process.argv[3];
+const q = (lv, rest) => (lv === 'middle' ? 'level=middle&' : '') + rest;
+const sfx = (lv) => (lv === 'middle' ? '-middle' : '');
 if (!only || only === 'layout') {
-  for (const [w, h] of [[1920, 1080], [1366, 768], [1180, 820], [1024, 768]]) {
-    shot(`layout-${w}x${h}.png`, w, h, '');
-    shot(`layout-${w}x${h}-1950-08.png`, w, h, 'year=1950-08');
+  for (const lv of levelArg ? [levelArg] : ['elementary', 'middle']) {
+    for (const [w, h] of [[1920, 1080], [1366, 768], [1180, 820], [1024, 768]]) {
+      shot(`layout-${w}x${h}${sfx(lv)}.png`, w, h, lv === 'middle' ? 'level=middle&year=-400' : '');
+      shot(`layout-${w}x${h}-1950-08${sfx(lv)}.png`, w, h, q(lv, 'year=1950-08'));
+    }
   }
 }
 if (!only || only === 'snapshots') {
   const content = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/content.json'), 'utf8'));
-  for (const s of content.snapshots) shot(`snap-${s.key.replace(/^-/, 'm')}.png`, 1920, 1080, 'year=' + s.key);
+  const lv = levelArg || 'elementary';
+  for (const s of content.snapshots) shot(`snap-${s.key.replace(/^-/, 'm')}${sfx(lv)}.png`, 1920, 1080, q(lv, 'year=' + s.key));
 }
