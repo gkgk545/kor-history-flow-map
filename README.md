@@ -166,7 +166,11 @@ git push -u origin main
 
 3. 저장소의 **Settings → Pages**에서 Source를 **Deploy from a branch**, Branch를 `main` / `/(root)`로 고르고 저장한다.
 4. 1~2분 뒤 `https://<계정>.github.io/korean-history-timeline/`에서 열린다. 빌드 단계는 없다(`data/data.js`가 커밋되어 있어야 한다).
-5. 라이선스는 아직 정하지 않았다. 공개하기 전에 정한다(바탕 지도 Natural Earth는 퍼블릭 도메인, 지형 음영의 Terrain Tiles는 출처 표기 조건).
+
+## 라이선스
+
+코드와 직접 만든 데이터(나라 도형, 도읍·전투 점, 글)는 [MIT 라이선스](LICENSE)를 따른다.
+바탕 지도와 지형 자료는 원래 조건을 따른다. 바탕 지도 Natural Earth는 퍼블릭 도메인이다. 지형 음영의 Terrain Tiles(USGS SRTM·GMTED2010, NOAA ETOPO1, Mapzen)는 출처를 표기해야 한다. 자세한 내용은 [data/SOURCES.md](data/SOURCES.md)에 있다.
 
 ## 만들지 않은 것
 
