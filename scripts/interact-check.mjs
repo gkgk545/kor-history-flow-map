@@ -285,11 +285,12 @@ await check('논쟁 위치 점은 점선 테두리(645년 안시성)', async () 
   return !!document.querySelector('#map .pt.disputed [stroke-dasharray]') || 'no';`); });
 
 // 수준
-await check('초등: 수준 표시 없음', async () => { await open('year=375'); return ev(`${H} return $('level-badge').hidden && !document.title.includes('중학교');`); });
-await check('?level=middle: 중학교 표시와 중등 글', async () => {
+const lvPressed = `[...document.querySelectorAll('.lv-btn')].find((b) => b.getAttribute('aria-pressed') === 'true').dataset.level`;
+await check('초등: 초등 버튼 눌림, 제목에 중등 없음', async () => { await open('year=375'); return ev(`${H} return (${lvPressed} === 'elementary' && !document.title.includes('중등')) || ${lvPressed};`); });
+await check('?level=middle: 중등 표시와 중등 글', async () => {
   await open('level=middle&year=375');
   const cap = content.snapshots.find((s) => s.key === '375').middle.caption;
-  return ev(`${H} return (!$('level-badge').hidden && document.title.includes('중학교') && $('panel-caption').textContent === ${JSON.stringify(cap)}) || $('panel-caption').textContent;`);
+  return ev(`${H} return (${lvPressed} === 'middle' && document.title.includes('중등') && $('panel-caption').textContent === ${JSON.stringify(cap)}) || $('panel-caption').textContent;`);
 });
 await check('중등: 나라 소개·패널 안내도 중등 문구', () => ev(`${H}
   document.querySelector('.lg-item').click(); await sleep(50);
@@ -301,6 +302,17 @@ await check('직전 시점은 수준마다 따로 기억', async () => {
   await open('');
   const b = await ev(`${H} return time();`);
   return (a === '475년' && b !== '475년') || [a, b];
+});
+await check('수준 버튼: 같은 시점에서 글만 바뀌고 주소에 level 반영', async () => {
+  await open('year=475');
+  const el = content.snapshots.find((s) => s.key === '475').elementary.caption;
+  const mi = content.snapshots.find((s) => s.key === '475').middle.caption;
+  const a = await ev(`${H} return $('panel-caption').textContent;`);
+  await ev(`${H} document.querySelector('.lv-btn[data-level=middle]').click();`); await wait(450);
+  const b = await ev(`${H} return [$('panel-caption').textContent, time(), location.search, document.title.includes('중등'), $('panel-disclaimer').textContent.includes('다를 수 있습니다')];`);
+  await ev(`${H} document.querySelector('.lv-btn[data-level=elementary]').click();`); await wait(450);
+  const c = await ev(`${H} return [$('panel-caption').textContent, location.search, $('panel-disclaimer').textContent.includes('다를 수 있어요')];`);
+  return (a === el && b[0] === mi && b[1] === '475년' && b[2] === '?level=middle&year=475' && b[3] && b[4] && c[0] === el && c[1] === '?year=475' && c[2]) || [a, b, c];
 });
 await check('중등 기원전 딥링크 ?level=middle&year=-108', async () => { await open('level=middle&year=-108'); return ev(`${H}
   return (time() === '기원전 108년' && $('panel-caption').textContent === ${JSON.stringify(content.snapshots.find((s) => s.key === '-194').middle.caption)}) || time();`); });

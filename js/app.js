@@ -1,6 +1,7 @@
 /*
  * 화면 동작: 타임라인(슬라이더·재생·속도·이전/다음), 범례, 오른쪽 패널, 키보드, 딥링크
- * 수준: ?level=middle 이면 중등 글, 아니면 초등 글(화면 안에 전환 버튼은 없다).
+ * 수준: 위쪽 '초등 | 중등' 버튼으로 바꾼다. 처음 수준은 ?level=middle 이면 중등, 없으면 초등
+ *       (주소에 수준이 없고 틸더스 런치패드에서 열렸으면 반별 데이터 level 값).
  * 저장하는 것은 localStorage의 "직전 시점" 하나뿐이다(수준마다 따로, 실패하면 조용히 무시).
  */
 (function () {
@@ -13,16 +14,22 @@
   // 연도↔막대 위치 변환 (시대 띠 너비 몫). 막대 위의 모든 위치는 이것만 쓴다.
   var scale = Model.makeScale(A.eras, MIN_T, MAX_T);
   var LEVEL = Model.levelFromSearch(location.search);
-  var STORE_KEY = LEVEL === 'middle' ? 'hist-timeline:last:middle' : 'hist-timeline:last';
-  // 수준마다 다른 화면 문구
-  var UI = {
-    elementary: { disputed: '점선 부분은 학자마다 생각이 달라요.', disputedPoint: '정확한 자리는 학자마다 생각이 달라요.' },
+  function storeKey() { return LEVEL === 'middle' ? 'hist-timeline:last:middle' : 'hist-timeline:last'; }
+  // 수준마다 다른 화면 문구 (초등의 범례·패널 안내는 index.html에 적힌 글)
+  var UI_TEXT = {
+    elementary: {
+      disputed: '점선 부분은 학자마다 생각이 달라요.', disputedPoint: '정확한 자리는 학자마다 생각이 달라요.',
+      legendDash: document.getElementById('legend-dash').textContent,
+      panelDisclaimer: document.getElementById('panel-disclaimer').textContent,
+    },
     middle: {
       disputed: '점선은 학설이 갈리는 경계입니다.', disputedPoint: '위치는 학설이 갈립니다.',
       legendDash: '학설이 갈리는 경계',
       panelDisclaimer: '세력 범위는 대략적인 모습입니다. 옛 나라의 영역은 정해진 국경이 아니라 세력이 미친 범위이며, 점선은 학설이 갈리는 경계입니다. 교과서 서술을 따르되 교과서마다 조금씩 다를 수 있습니다.',
     },
-  }[LEVEL];
+  };
+  var UI = UI_TEXT[LEVEL];
+  var BASE_TITLE = document.title;
   function txt(snap) { return snap[LEVEL] || snap.elementary; }
   function intro(pol) { return Model.pick(pol && pol.intro, LEVEL) || ''; }
   var SPEEDS = [0.5, 1, 2, 4];
@@ -49,7 +56,7 @@
     var st = q ? Model.stateForParam(snaps, q) : null;
     if (st) return st;
     try {
-      var saved = localStorage.getItem(STORE_KEY);
+      var saved = localStorage.getItem(storeKey());
       if (saved) st = Model.stateForParam(snaps, saved);
     } catch (e) { /* 저장소를 못 쓰면 무시 */ }
     return st || Model.stateForYear(snaps, Model.MIN_YEAR);
@@ -189,7 +196,7 @@
     clearTimeout(rememberTimer);
     rememberTimer = setTimeout(function () {
       var key = Model.keyParam(state);
-      try { localStorage.setItem(STORE_KEY, key); } catch (e) { /* 무시 */ }
+      try { localStorage.setItem(storeKey(), key); } catch (e) { /* 무시 */ }
       try { history.replaceState(null, '', Model.search(LEVEL, key)); } catch (e) { /* file:// 등에서 막히면 무시 */ }
     }, 300);
   }
@@ -556,6 +563,33 @@
   }
   $('present-toggle').addEventListener('click', function () { setPresent(!app.classList.contains('present')); });
 
+  // ---------- 수준 전환 ----------
+  // 같은 장면·시점에서 글(패널·나라 소개·툴팁·안내)만 그 수준으로 바꾼다. 지도와 장면은 두 수준이 같다.
+  function applyLevel() {
+    UI = UI_TEXT[LEVEL];
+    document.title = BASE_TITLE + (LEVEL === 'middle' ? ' (중등)' : '');
+    $('legend-dash').textContent = UI.legendDash;
+    $('panel-disclaimer').textContent = UI.panelDisclaimer;
+    Array.prototype.forEach.call(document.querySelectorAll('.lv-btn'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.level === LEVEL ? 'true' : 'false');
+    });
+  }
+  function setLevel(lv) {
+    if (lv !== 'middle') lv = 'elementary';
+    if (lv === LEVEL) return;
+    LEVEL = lv;
+    applyLevel();
+    hideTip();
+    renderPanel(snaps[state.idx]);
+    if (pinned) $('polity-intro').textContent = intro(A.polities[pinned]);
+    renderTime();
+    renderPresentCard();
+    remember();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.lv-btn'), function (b) {
+    b.addEventListener('click', function () { setLevel(b.dataset.level); });
+  });
+
   // ---------- 그 밖의 조작 ----------
   function dismissHint() { $('hint').hidden = true; }
   $('hint-close').addEventListener('click', dismissHint);
@@ -595,14 +629,13 @@
   if ($('map-wrap').clientHeight < 460) $('legend').classList.add('collapsed');
 
   // ---------- 시작 ----------
-  if (LEVEL === 'middle') {
-    $('level-badge').hidden = false;
-    document.title += ' (중학교)';
-    $('legend-dash').textContent = UI.legendDash;
-    $('panel-disclaimer').textContent = UI.panelDisclaimer;
-  }
+  applyLevel();
   buildTimeline();
   fitMap();
   setState(initialState());
   booted = true;
+  // 틸더스 런치패드에서 열렸고 주소에 수준이 없으면, 선생님이 반마다 정한 level(elementary|middle)로 시작한다
+  if (!/[?&]level=/.test(location.search) && window.tuilders && window.tuilders.launched()) {
+    window.tuilders.params({ level: LEVEL }).then(function (p) { setLevel(p.level); });
+  }
 })();

@@ -11,13 +11,17 @@
 <div id="app">
   <header id="topbar">
     <div class="brand">
-      <h1>한국사 영역 타임라인 <span id="level-badge" class="level-badge" hidden>중학교</span></h1>
+      <h1>한국사 영역 타임라인</h1>
       <p class="sub">기원전 400년부터 오늘날까지, 나라들의 세력 범위</p>
     </div>
     <div class="top-right">
       <div class="top-now" aria-live="polite">
         <span id="top-era" class="era-chip"></span>
         <span id="top-time" class="top-time"></span>
+      </div>
+      <div id="level-switch" class="level-switch" role="group" aria-label="글 수준">
+        <button type="button" class="lv-btn" data-level="elementary" aria-pressed="true">초등</button>
+        <button type="button" class="lv-btn" data-level="middle" aria-pressed="false">중등</button>
       </div>
       <button id="present-toggle" class="icon-btn present-btn" aria-pressed="false">발표 모드</button>
     </div>
