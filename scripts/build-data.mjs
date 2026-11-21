@@ -233,12 +233,17 @@ function buildBasemap(neDir) {
 
 // ---------- data.js 만들기 ----------
 
+// 스냅샷 파일 이름: s-<키>.geojson. 기원전 키는 음수 기호 대신 m을 쓴다(키 -108 → s-m108.geojson).
 export function snapshotFiles() {
-  return fs.readdirSync(DATA).filter((f) => /^s-\d{3,4}(-\d{2})?\.geojson$/.test(f)).sort();
+  return fs.readdirSync(DATA).filter((f) => /^s-m?\d{1,4}(-\d{2})?\.geojson$/.test(f)).sort();
 }
 
 export function keyOfFile(f) {
-  return f.replace(/^s-/, '').replace(/\.geojson$/, '');
+  return f.replace(/^s-/, '').replace(/\.geojson$/, '').replace(/^m/, '-');
+}
+
+export function fileOfKey(key) {
+  return 's-' + String(key).replace(/^-/, 'm') + '.geojson';
 }
 
 function buildDataJs() {

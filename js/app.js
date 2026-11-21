@@ -7,11 +7,13 @@
 
   var A = window.ATLAS;
   var snaps = Model.prepare(A.snapshots);
-  var MIN_T = Model.MIN_YEAR * 12;
-  var MAX_T = Model.MAX_YEAR * 12 + 11;
+  var MIN_T = Model.yearT(Model.MIN_YEAR);
+  var MAX_T = Model.yearT(Model.MAX_YEAR, 12);
+  // 연도↔막대 위치 변환 (시대 띠 너비 몫). 막대 위의 모든 위치는 이것만 쓴다.
+  var scale = Model.makeScale(A.eras, MIN_T, MAX_T);
   var STORE_KEY = 'hist-timeline:last';
   var SPEEDS = [0.5, 1, 2, 4];
-  var YEARS_PER_SEC = 18; // 1배속에서 1초에 지나가는 해
+  var SECONDS_PER_TRACK = 90; // 1배속에서 막대 끝까지 움직이는 시간(멈춤 제외)
 
   var $ = function (id) { return document.getElementById(id); };
   var app = $('app');
@@ -40,16 +42,16 @@
   }
 
   // ---------- 타임라인 그리기 ----------
-  function frac(t) { return (Math.max(MIN_T, Math.min(MAX_T, t)) - MIN_T) / (MAX_T + 1 - MIN_T); }
+  function frac(t) { return scale.tToFrac(t); }
 
   function buildTimeline() {
     var bands = $('bands');
     bands.textContent = '';
-    A.eras.forEach(function (e) {
-      var a = Model.startT(e.from), b = Model.endT(e.to) + 1;
+    scale.bands.forEach(function (x) {
+      var e = x.era;
       var d = document.createElement('div');
       d.className = 'band';
-      d.style.width = ((b - a) / (MAX_T + 1 - MIN_T)) * 100 + '%';
+      d.style.width = (x.f1 - x.f0) * 100 + '%';
       d.style.background = e.color;
       d.title = e.name;
       d.dataset.id = e.id;
@@ -69,17 +71,32 @@
     layoutAxis();
   }
 
+  // 연도 눈금: 시대 띠마다 따로, 띠 너비에 맞는 간격으로 찍고 겹치는 것은 뺀다
+  var AXIS_STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
   function layoutAxis() {
     var axis = $('axis');
     axis.textContent = '';
     var w = $('track').clientWidth;
-    var step = w > 1100 ? 100 : 200;
-    for (var y = Math.ceil(Model.MIN_YEAR / step) * step; y <= Model.MAX_YEAR; y += step) {
-      var s = document.createElement('span');
-      s.textContent = y;
-      s.style.left = frac(y * 12) * 100 + '%';
-      axis.appendChild(s);
-    }
+    var placed = [];
+    scale.bands.forEach(function (x) {
+      var y0 = Model.yearOf(x.a), y1 = Model.yearOf(x.b - 1);
+      var px = (x.f1 - x.f0) * w;
+      var pxPerYear = px / ((x.b - x.a) / 12);
+      var minGap = y0 < 0 ? 84 : 46;
+      var step = AXIS_STEPS.find(function (st) { return st * pxPerYear >= minGap; }) || 1000;
+      var first = Math.ceil(y0 / step) * step;
+      for (var y = first; y <= y1; y += step) {
+        if (y === 0) continue;
+        var at = frac(Model.yearT(y)) * w;
+        var s = document.createElement('span');
+        s.textContent = Model.yearText(y);
+        s.style.left = (at / w) * 100 + '%';
+        axis.appendChild(s);
+        var half = s.offsetWidth / 2 + 4;
+        var hit = at - half < 0 || at + half > w || placed.some(function (q) { return at - half < q[1] && at + half > q[0]; });
+        if (hit) axis.removeChild(s); else placed.push([at - half, at + half]);
+      }
+    });
     // 밴드 이름이 칸보다 길면 숨긴다
     Array.prototype.forEach.call($('bands').children, function (b) {
       b.firstChild.style.visibility = b.clientWidth < b.firstChild.scrollWidth + 4 ? 'hidden' : '';
@@ -127,6 +144,8 @@
     $('top-time').textContent = label;
     var tr = $('track');
     tr.setAttribute('aria-valuenow', Model.yearOf(state.t));
+    tr.setAttribute('aria-valuemin', Model.MIN_YEAR);
+    tr.setAttribute('aria-valuemax', Model.MAX_YEAR);
     tr.setAttribute('aria-valuetext', label + ', ' + snaps[state.idx].caption);
     var era = Model.eraAt(A.eras, state.t);
     ['top-era', 'panel-era'].forEach(function (id) {
@@ -233,19 +252,20 @@
       var y = document.createElement('span');
       y.className = 'ev-year';
       var p = Model.parseKey(ev.year);
-      y.textContent = p.m ? p.y + '.' + p.m : p.y;
+      y.textContent = Model.yearText(p.y) + (p.m ? '.' + p.m : '');
+      if (p.y < 0) y.classList.add('bc');
       var t = document.createElement('span');
       t.textContent = ev.text;
       b.appendChild(y);
       b.appendChild(t);
-      b.setAttribute('aria-label', (p.m ? p.y + '년 ' + p.m + '월' : p.y + '년') + ': ' + ev.text + ' — 이때로 가기');
+      b.setAttribute('aria-label', Model.keyLabel(ev.year) + ': ' + ev.text + ' — 이때로 가기');
       b.addEventListener('click', function () {
         stopPlay();
         dismissHint();
         var st = p.m ? Model.stateForParam(snaps, ev.year) : Model.stateForYear(snaps, p.y);
         // 사건의 해가 다른 장면 범위에 있으면 그 장면으로, 아니면 지금 장면 안에서 그해로
         if (!p.m && st.idx !== state.idx) {
-          var t2 = p.y * 12;
+          var t2 = Model.yearT(p.y);
           var i2 = Model.indexAtT(snaps, t2);
           if (i2 >= 0) st = { idx: i2, t: Math.max(t2, snaps[i2].fromT), hasMonth: false };
         }
@@ -332,8 +352,7 @@
   function stateAtClientX(clientX) {
     var r = $('track').getBoundingClientRect();
     var x = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-    var year = Model.MIN_YEAR + x * (Model.MAX_YEAR - Model.MIN_YEAR + 1) - 0.5;
-    return Model.stateForYear(snaps, year);
+    return Model.stateForYear(snaps, scale.fracToYear(x));
   }
   (function bindTrack() {
     var tr = $('track'), dragging = false;
@@ -361,12 +380,12 @@
   $('next').addEventListener('click', function () { step(1); });
 
   // ---------- 재생 ----------
-  var cursor = 0, holdUntil = 0, nextStop = 0, lastTs = 0, raf = 0;
+  var cursor = 0, holdUntil = 0, nextStop = 0, lastTs = 0, raf = 0; // cursor: 막대 위치(0~1)
 
   function startPlay() {
     if (state.idx === snaps.length - 1) setState(Model.stateForYear(snaps, Model.MIN_YEAR));
     playing = true;
-    cursor = state.t;
+    cursor = frac(state.t);
     nextStop = stops.findIndex(function (s) { return s.t > state.t; });
     if (nextStop < 0) nextStop = stops.length;
     holdUntil = performance.now() + 500;
@@ -393,22 +412,23 @@
     lastTs = ts;
     var speed = SPEEDS[speedIdx];
     if (ts >= holdUntil) {
-      cursor += dt * YEARS_PER_SEC * 12 * speed;
+      // 막대 위를 고른 빠르기로 지나간다(시대 띠가 좁으면 그 시대는 빨리 지나감)
+      cursor += (dt * speed) / SECONDS_PER_TRACK;
       var stop = stops[nextStop];
-      if (stop && cursor >= stop.t) {
-        cursor = stop.t;
+      if (stop && cursor >= frac(stop.t)) {
+        cursor = frac(stop.t);
         nextStop++;
         setState({ idx: stop.idx, t: stop.t, hasMonth: stop.hasMonth }, { silent: true });
         // 시대가 바뀔 때만 멈춘다. 장면이 바뀌는 지점은 그리고 바로 지나간다.
         holdUntil = stop.kind === 'era' ? ts + 1800 / Math.sqrt(speed) : ts;
-      } else if (cursor >= MAX_T) {
+      } else if (cursor >= frac(MAX_T)) {
         setState(Model.stateForIndex(snaps, snaps.length - 1));
         stopPlay();
         return;
       } else {
-        var t = Math.floor(cursor);
+        var t = scale.fracToT(cursor);
         var idx = Model.indexAtT(snaps, t);
-        if (idx >= 0 && Model.yearOf(t) !== Model.yearOf(state.t)) setState({ idx: idx, t: Model.yearOf(t) * 12, hasMonth: false }, { silent: true });
+        if (idx >= 0 && Model.yearOf(t) !== Model.yearOf(state.t)) setState({ idx: idx, t: Model.yearT(Model.yearOf(t)), hasMonth: false }, { silent: true });
       }
     }
     raf = requestAnimationFrame(tick);

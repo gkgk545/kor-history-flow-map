@@ -33,7 +33,7 @@ const CONF = ['대략', '논쟁'];
 const content = JSON.parse(read('data/content.json'));
 const snapFiles = fs.readdirSync(DATA).filter((f) => /^s-.*\.geojson$/.test(f));
 const geo = {};
-const keyOf = (f) => f.replace(/^s-/, '').replace(/\.geojson$/, '');
+const keyOf = (f) => f.replace(/^s-/, '').replace(/\.geojson$/, '').replace(/^m/, '-');
 
 // ---------- 1. GeoJSON 유효성 ----------
 section('GeoJSON 유효성 (RFC 7946)');
@@ -126,8 +126,8 @@ for (const [name, p] of Object.entries(content.polities)) {
 // ---------- 3. 스냅샷 완결성 ----------
 section('스냅샷 완결성');
 const snaps = Model.prepare(content.snapshots.map((s) => ({ ...s, features: geo[s.key]?.features || [] })));
-for (const s of content.snapshots) if (!geo[s.key]) fail(`스냅샷 ${s.key}: data/s-${s.key}.geojson 없음`);
-for (const k of Object.keys(geo)) if (!content.snapshots.some((s) => s.key === k)) fail(`s-${k}.geojson: content.json에 스냅샷 글이 없음`);
+for (const s of content.snapshots) if (!geo[s.key]) fail(`스냅샷 ${s.key}: data/s-${Model.fileKey(s.key)}.geojson 없음`);
+for (const k of Object.keys(geo)) if (!content.snapshots.some((s) => s.key === k)) fail(`s-${Model.fileKey(k)}.geojson: content.json에 스냅샷 글이 없음`);
 for (const s of snaps) {
   const w = `스냅샷 ${s.key}`;
   if (s.keyT < s.fromT || s.keyT > s.toT) fail(`${w}: 키가 적용 범위(${s.from}~${s.to}) 밖에 있음`);
@@ -142,24 +142,26 @@ for (const s of snaps) {
 for (let i = 0; i < snaps.length; i++) {
   if (i > 0 && snaps[i].fromT !== snaps[i - 1].toT + 1) fail(`스냅샷 ${snaps[i - 1].key}→${snaps[i].key}: 구간이 이어지지 않음`);
 }
-if (snaps[0].fromT !== Model.MIN_YEAR * 12) fail('첫 스냅샷이 375년 1월에 시작하지 않음');
-if (snaps.at(-1).toT !== Model.MAX_YEAR * 12 + 11) fail('마지막 스냅샷이 2026년 12월에 끝나지 않음');
+const RANGE = `${Model.keyLabel(String(Model.MIN_YEAR))}~${Model.keyLabel(String(Model.MAX_YEAR))}`;
+if (snaps[0].fromT !== Model.yearT(Model.MIN_YEAR)) fail(`첫 스냅샷이 ${Model.keyLabel(String(Model.MIN_YEAR))} 1월에 시작하지 않음`);
+if (snaps.at(-1).toT !== Model.yearT(Model.MAX_YEAR, 12)) fail(`마지막 스냅샷이 ${Model.MAX_YEAR}년 12월에 끝나지 않음`);
 // 모든 연도·월에서 지도가 비지 않는지 (슬라이더 규칙과 월 단위 모두)
-let emptyCount = 0;
-for (let y = Model.MIN_YEAR; y <= Model.MAX_YEAR; y++) {
+let emptyCount = 0, yearCount = 0;
+for (let y = Model.MIN_YEAR; y <= Model.MAX_YEAR; y = Model.nextYear(y)) {
+  yearCount++;
   const st = Model.stateForYear(snaps, y);
   if (st.idx < 0) { fail(`${y}년: 스냅샷 없음`); continue; }
   const vis = Model.visibleFeatures(snaps[st.idx], st.t).filter((f) => f.properties.role === 'korea' && !f.properties.kind);
   if (!vis.length) { fail(`${y}년: 보이는 우리 역사 나라 도형이 없음 (스냅샷 ${snaps[st.idx].key})`); emptyCount++; }
 }
-for (let t = Model.MIN_YEAR * 12; t <= Model.MAX_YEAR * 12 + 11; t++) {
+for (let t = Model.yearT(Model.MIN_YEAR); t <= Model.yearT(Model.MAX_YEAR, 12); t++) {
   const idx = Model.indexAtT(snaps, t);
   if (idx < 0) { fail(`${Model.yearOf(t)}년 ${Model.monthOf(t)}월: 스냅샷 없음`); break; }
   if (!Model.visibleFeatures(snaps[idx], t).some((f) => f.properties.role === 'korea' && !f.properties.kind)) {
     fail(`${Model.yearOf(t)}년 ${Model.monthOf(t)}월: 지도가 빔`); break;
   }
 }
-note(`375~2026년 ${Model.MAX_YEAR - Model.MIN_YEAR + 1}개 연도 모두 검사, 빈 지도 ${emptyCount}건`);
+note(`${RANGE} ${yearCount}개 연도 모두 검사, 빈 지도 ${emptyCount}건`);
 // 같은 해 스냅샷이 여러 장인 경우 첫 장을 보여 주는지
 const byYear = {};
 snaps.forEach((s, i) => { (byYear[s.keyYear] ||= []).push(i); });
@@ -171,10 +173,71 @@ for (const [y, list] of Object.entries(byYear)) {
   }
 }
 // 시대 띠
-if (content.eras.length !== 8) fail(`시대 띠는 8개 (지금 ${content.eras.length}개)`);
+if (content.eras.length !== 10) fail(`시대 띠는 10개 (지금 ${content.eras.length}개)`);
 for (let i = 1; i < content.eras.length; i++) {
   if (Model.startT(content.eras[i].from) !== Model.endT(content.eras[i - 1].to) + 1) fail(`시대 띠 ${content.eras[i - 1].name}→${content.eras[i].name} 사이가 끊김`);
 }
+for (const e of content.eras) if (!(typeof e.weight === 'number' && e.weight > 0)) fail(`시대 띠 ${e.name}: 너비 몫(weight)이 없음`);
+
+// ---------- 시간 모델 ----------
+section('시간 모델 (0년 없음, 연도↔위치 변환)');
+const FULL_MIN = -400, FULL_MAX = 2026; // 명세의 전체 범위
+// 1024×768에서 슬라이더 막대 너비(px): 1024 − 좌우 여백 32 − 재생·속도 120 − 이전·다음 96 − 간격 30
+const TRACK_1024 = 746;
+const MIN_BAND_PX = 48;
+if (Model.parseKey('0') !== null || Model.parseKey('0-05') !== null) fail('0년을 연도로 받음');
+let yr = 0;
+for (let y = FULL_MIN; y <= FULL_MAX; y = Model.nextYear(y)) {
+  yr++;
+  if (y === 0) { fail('연도를 하나씩 넘기다 0년을 지남'); break; }
+  if (Model.yearOf(Model.yearT(y)) !== y || Model.yearOf(Model.yearT(y, 12)) !== y) { fail(`${y}년: 연도→월 번호→연도가 되돌아오지 않음`); break; }
+  if (y < FULL_MAX && Model.yearT(Model.nextYear(y)) !== Model.yearT(y) + 12) { fail(`${y}년 다음 해가 12달 뒤가 아님`); break; }
+}
+if (Model.nextYear(-1) !== 1) fail('기원전 1년 다음이 1년이 아님');
+if (yr !== FULL_MAX - FULL_MIN) fail(`기원전 400년~2026년은 ${FULL_MAX - FULL_MIN}개 해여야 함 (지금 ${yr})`);
+for (const [st, want] of [[{ t: Model.yearT(-108), hasMonth: false }, '기원전 108년'], [{ t: Model.yearT(-1), hasMonth: false }, '기원전 1년'],
+  [{ t: Model.yearT(1), hasMonth: false }, '1년'], [{ t: Model.yearT(1950, 8), hasMonth: true }, '1950년 8월']]) {
+  if (Model.label(st) !== want) fail(`표시 "${Model.label(st)}" ≠ "${want}"`);
+}
+if (Model.keyParam({ t: Model.yearT(-108), hasMonth: false }) !== '-108') fail('기원전 108년 딥링크 값이 -108이 아님');
+if (Model.periodLabel({ from: '-107', to: '-1' }) !== '기원전 107년 ~ 기원전 1년') fail('기원전 기간 표시 오류');
+if (Model.fileKey('-108') !== 'm108' || Model.keyOfFileKey('m108') !== '-108') fail('기원전 파일 이름 변환 오류');
+// 데이터 어디에도 0년이 없는지
+const zeroYear = [];
+for (const s of content.snapshots) {
+  for (const k of [s.key, s.from, s.to]) if (!Model.parseKey(k)) zeroYear.push(`스냅샷 ${s.key}: "${k}"`);
+  for (const e of s.events || []) if (!Model.parseKey(e.year)) zeroYear.push(`스냅샷 ${s.key} 사건: "${e.year}"`);
+}
+for (const e of content.eras) for (const k of [e.from, e.to]) if (!Model.parseKey(k)) zeroYear.push(`시대 띠 ${e.name}: "${k}"`);
+for (const [key, fc] of Object.entries(geo)) for (const f of fc.features) {
+  if (f.properties.start === 0 || f.properties.end === 0) zeroYear.push(`s-${Model.fileKey(key)} ${f.properties.name}`);
+}
+for (const z of zeroYear) fail(`0년이거나 읽을 수 없는 연도: ${z}`);
+// 시대 띠가 전체 범위를 덮는지
+if (content.eras[0].from !== String(FULL_MIN)) fail(`첫 시대 띠가 기원전 400년에 시작하지 않음 (${content.eras[0].from})`);
+if (content.eras.at(-1).to !== String(FULL_MAX)) fail(`마지막 시대 띠가 2026년에 끝나지 않음 (${content.eras.at(-1).to})`);
+// 연도↔위치 변환: 전체 범위와 지금 데이터 범위 모두
+const scales = {
+  '전체 범위': Model.makeScale(content.eras, Model.yearT(FULL_MIN), Model.yearT(FULL_MAX, 12)),
+  '앱 범위': Model.makeScale(content.eras, Model.yearT(Model.MIN_YEAR), Model.yearT(Model.MAX_YEAR, 12)),
+};
+for (const [nm, sc] of Object.entries(scales)) {
+  let bad = 0;
+  if (sc.tToFrac(sc.minT) !== 0 || Math.abs(sc.tToFrac(sc.maxT + 1) - 1) > 1e-12) fail(`${nm}: 양 끝 위치가 0과 1이 아님`);
+  for (let t = sc.minT; t <= sc.maxT && bad < 3; t++) {
+    const f = sc.tToFrac(t), f2 = sc.tToFrac(t + 1);
+    if (!(f2 > f)) { fail(`${nm}: ${Model.yearOf(t)}년 ${Model.monthOf(t)}월에서 위치가 늘지 않음`); bad++; }
+    if (sc.fracToT(f) !== t || sc.fracToT((f + f2) / 2) !== t) { fail(`${nm}: ${Model.yearOf(t)}년 ${Model.monthOf(t)}월 위치→시점이 되돌아오지 않음`); bad++; }
+  }
+  for (const y of [-400, -108, -1, 1, 300, 1950, 2026]) {
+    if (y < Model.yearOf(sc.minT)) continue;
+    if (sc.fracToYear(sc.yearToFrac(y)) !== y) fail(`${nm}: ${y}년 위치 변환이 되돌아오지 않음`);
+  }
+}
+const fullSc = scales['전체 범위'];
+const narrow = fullSc.bands.map((b) => ({ name: b.era.name, px: (b.f1 - b.f0) * TRACK_1024 }));
+for (const b of narrow) if (b.px < MIN_BAND_PX) fail(`시대 띠 ${b.name}: 1024px 화면에서 ${b.px.toFixed(0)}px (${MIN_BAND_PX}px보다 좁음)`);
+note(`기원전 400년~2026년 ${yr}개 해, 0년 없음. 1024px 화면 띠 너비 ${narrow.map((b) => b.name + ' ' + b.px.toFixed(0)).join(', ')}px`);
 
 // ---------- 4. 존속 연도와 스냅샷 범위 ----------
 section('존속 연도와 스냅샷 범위');

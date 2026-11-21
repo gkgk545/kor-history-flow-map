@@ -192,6 +192,7 @@ button { font: inherit; color: inherit; }
 .events button:hover { background: #f7f2e8; }
 .events button.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
 .events .ev-year { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.events .ev-year.bc { font-size: 13px; letter-spacing: -0.3px; }
 .questions { display: flex; flex-direction: column; gap: 8px; }
 .questions details { border: 1px solid #e3d3a8; border-radius: 8px; background: #fff8e6; }
 .questions summary {

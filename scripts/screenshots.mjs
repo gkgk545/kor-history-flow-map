@@ -35,5 +35,5 @@ if (!only || only === 'layout') {
 }
 if (!only || only === 'snapshots') {
   const content = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/content.json'), 'utf8'));
-  for (const s of content.snapshots) shot(`snap-${s.key}.png`, 1920, 1080, 'year=' + s.key);
+  for (const s of content.snapshots) shot(`snap-${s.key.replace(/^-/, 'm')}.png`, 1920, 1080, 'year=' + s.key);
 }

@@ -1,13 +1,32 @@
 {
   "eras": [
     {
+      "id": "gojoseon",
+      "name": "고조선",
+      "short": "고조선",
+      "from": "-400",
+      "to": "-108",
+      "color": "#d8c79a",
+      "weight": 7
+    },
+    {
+      "id": "yeoreonara",
+      "name": "여러 나라의 성장",
+      "short": "여러 나라",
+      "from": "-107",
+      "to": "299",
+      "color": "#cfd6a4",
+      "weight": 9
+    },
+    {
       "id": "samguk",
       "name": "삼국 시대",
       "short": "삼국",
-      "from": "375",
+      "from": "300",
       "to": "675",
       "color": "#e8c9a0",
-      "note": "가야를 함께 다뤄요"
+      "note": "가야를 함께 다뤄요",
+      "weight": 12
     },
     {
       "id": "nambuk",
@@ -15,7 +34,8 @@
       "short": "남북국",
       "from": "676",
       "to": "900",
-      "color": "#d9b8c9"
+      "color": "#d9b8c9",
+      "weight": 9
     },
     {
       "id": "husamguk",
@@ -23,7 +43,8 @@
       "short": "후삼국",
       "from": "901",
       "to": "935",
-      "color": "#e3b39a"
+      "color": "#e3b39a",
+      "weight": 7
     },
     {
       "id": "goryeo",
@@ -31,7 +52,8 @@
       "short": "고려",
       "from": "936",
       "to": "1391",
-      "color": "#a9d3cb"
+      "color": "#a9d3cb",
+      "weight": 12
     },
     {
       "id": "joseon",
@@ -39,7 +61,8 @@
       "short": "조선",
       "from": "1392",
       "to": "1875",
-      "color": "#b5c2e6"
+      "color": "#b5c2e6",
+      "weight": 13
     },
     {
       "id": "geundae",
@@ -47,7 +70,8 @@
       "short": "근대",
       "from": "1876",
       "to": "1909",
-      "color": "#c9b8e3"
+      "color": "#c9b8e3",
+      "weight": 7
     },
     {
       "id": "ilje",
@@ -55,7 +79,8 @@
       "short": "일제 강점기",
       "from": "1910",
       "to": "1945-07",
-      "color": "#c7bfb5"
+      "color": "#c7bfb5",
+      "weight": 9
     },
     {
       "id": "hyeondae",
@@ -63,7 +88,8 @@
       "short": "현대",
       "from": "1945-08",
       "to": "2026",
-      "color": "#a9c6e8"
+      "color": "#a9c6e8",
+      "weight": 15
     }
   ],
   "polities": {

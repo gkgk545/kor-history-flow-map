@@ -471,7 +471,7 @@ S['2026'] = TODAY(2026, 2026);
 if (OUT) {
   for (const [key, feats] of Object.entries(S)) {
     const fc = { type: 'FeatureCollection', snapshot: key, features: feats };
-    fs.writeFileSync(`${OUT}/s-${key}.geojson`, JSON.stringify(fc, null, 0).replace(/\{"type":"Feature"/g, '\n{"type":"Feature"') + '\n');
+    fs.writeFileSync(`${OUT}/s-${key.replace(/^-/, 'm')}.geojson`, JSON.stringify(fc, null, 0).replace(/\{"type":"Feature"/g, '\n{"type":"Feature"') + '\n');
   }
   console.log('wrote', Object.keys(S).length, 'snapshots');
 }
