@@ -24,7 +24,7 @@
   var hoverName = null;
   var playing = false;
   var speedIdx = 1;
-  var stops = Model.playStops(snaps);
+  var stops = Model.playStops(snaps, A.eras);
 
   // ---------- 시작 상태 ----------
   function initialState() {
@@ -399,7 +399,8 @@
         cursor = stop.t;
         nextStop++;
         setState({ idx: stop.idx, t: stop.t, hasMonth: stop.hasMonth }, { silent: true });
-        holdUntil = ts + (stop.kind === 'snapshot' ? 1800 : 700) / Math.sqrt(speed);
+        // 시대가 바뀔 때만 멈춘다. 장면이 바뀌는 지점은 그리고 바로 지나간다.
+        holdUntil = stop.kind === 'era' ? ts + 1800 / Math.sqrt(speed) : ts;
       } else if (cursor >= MAX_T) {
         setState(Model.stateForIndex(snaps, snaps.length - 1));
         stopPlay();

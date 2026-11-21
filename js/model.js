@@ -132,25 +132,24 @@
     return null;
   }
 
-  // 재생할 때 잠깐 멈출 지점: 스냅샷 시작(길게) + 우리나라 도형이 나타나거나 사라지는 해(짧게)
-  function playStops(snaps) {
-    var stops = [];
+  // 재생할 때 들르는 지점
+  //  - 시대 띠가 바뀌는 때(kind "era"): 잠깐 멈춘다
+  //  - 스냅샷 시작(kind "snapshot"): 멈추지 않고 지나가되, 같은 해 안의 장면도 한 장씩 그린다
+  function playStops(snaps, eras) {
+    var byT = {};
     snaps.forEach(function (s, i) {
-      stops.push({ t: s.keyT, idx: i, hasMonth: s.keyHasMonth, kind: 'snapshot' });
-      var years = {};
-      s.features.forEach(function (f) {
-        var p = f.properties;
-        if (p.role !== 'korea' || p.fillAs || p.kind === 'line') return;
-        [featureStartT(p), featureEndT(p) + 1].forEach(function (t) {
-          if (t > s.keyT && t >= s.fromT && t <= s.toT) years[t] = true;
-        });
-      });
-      Object.keys(years).forEach(function (t) {
-        stops.push({ t: +t, idx: i, hasMonth: +t % 12 !== 0, kind: 'change' });
-      });
+      byT[s.keyT] = { t: s.keyT, idx: i, hasMonth: s.keyHasMonth, kind: 'snapshot' };
     });
-    stops.sort(function (a, b) { return a.t - b.t || (a.kind === 'snapshot' ? -1 : 1); });
-    return stops.filter(function (s, i) { return i === 0 || s.t !== stops[i - 1].t || s.idx !== stops[i - 1].idx; });
+    (eras || []).forEach(function (e, i) {
+      if (i === 0) return; // 첫 시대는 재생 시작점
+      var t = startT(e.from);
+      var idx = indexAtT(snaps, t);
+      if (idx < 0) return;
+      var hasMonth = parseKey(e.from).m !== null;
+      if (byT[t]) byT[t].kind = 'era';
+      else byT[t] = { t: t, idx: idx, hasMonth: hasMonth, kind: 'era' };
+    });
+    return Object.keys(byT).map(function (k) { return byT[k]; }).sort(function (a, b) { return a.t - b.t; });
   }
 
   var Model = {
