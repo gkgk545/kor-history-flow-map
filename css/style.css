@@ -158,6 +158,13 @@ button { font: inherit; color: inherit; }
 }
 .tooltip strong { display: block; font-size: 16px; }
 
+/* 수준 표시 (중등일 때만) */
+.level-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 6px; vertical-align: 3px;
+  background: #2f5d8a; color: #fff; font-size: 13px; font-weight: 700; letter-spacing: 0;
+}
+.level-badge[hidden] { display: none; }
+
 /* 버튼 */
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;

@@ -1,6 +1,7 @@
 /*
  * 화면 동작: 타임라인(슬라이더·재생·속도·이전/다음), 범례, 오른쪽 패널, 키보드, 딥링크
- * 저장하는 것은 localStorage의 "직전 시점" 하나뿐이다(실패하면 조용히 무시).
+ * 수준: ?level=middle 이면 중등 글, 아니면 초등 글(화면 안에 전환 버튼은 없다).
+ * 저장하는 것은 localStorage의 "직전 시점" 하나뿐이다(수준마다 따로, 실패하면 조용히 무시).
  */
 (function () {
   'use strict';
@@ -11,7 +12,15 @@
   var MAX_T = Model.yearT(Model.MAX_YEAR, 12);
   // 연도↔막대 위치 변환 (시대 띠 너비 몫). 막대 위의 모든 위치는 이것만 쓴다.
   var scale = Model.makeScale(A.eras, MIN_T, MAX_T);
-  var STORE_KEY = 'hist-timeline:last';
+  var LEVEL = Model.levelFromSearch(location.search);
+  var STORE_KEY = LEVEL === 'middle' ? 'hist-timeline:last:middle' : 'hist-timeline:last';
+  // 수준마다 다른 화면 문구
+  var UI = {
+    elementary: { disputed: '점선 부분은 학자마다 생각이 달라요.' },
+    middle: { disputed: '점선은 학설이 갈리는 경계입니다.' },
+  }[LEVEL];
+  function txt(snap) { return snap[LEVEL] || snap.elementary; }
+  function intro(pol) { return Model.pick(pol && pol.intro, LEVEL) || ''; }
   var SPEEDS = [0.5, 1, 2, 4];
   var SECONDS_PER_TRACK = 90; // 1배속에서 막대 끝까지 움직이는 시간(멈춤 제외)
 
@@ -146,7 +155,7 @@
     tr.setAttribute('aria-valuenow', Model.yearOf(state.t));
     tr.setAttribute('aria-valuemin', Model.MIN_YEAR);
     tr.setAttribute('aria-valuemax', Model.MAX_YEAR);
-    tr.setAttribute('aria-valuetext', label + ', ' + snaps[state.idx].caption);
+    tr.setAttribute('aria-valuetext', label + ', ' + txt(snaps[state.idx]).caption);
     var era = Model.eraAt(A.eras, state.t);
     ['top-era', 'panel-era'].forEach(function (id) {
       var e = $(id);
@@ -166,7 +175,7 @@
     rememberTimer = setTimeout(function () {
       var key = Model.keyParam(state);
       try { localStorage.setItem(STORE_KEY, key); } catch (e) { /* 무시 */ }
-      try { history.replaceState(null, '', '?year=' + key); } catch (e) { /* file:// 등에서 막히면 무시 */ }
+      try { history.replaceState(null, '', Model.search(LEVEL, key)); } catch (e) { /* file:// 등에서 막히면 무시 */ }
     }, 300);
   }
 
@@ -233,19 +242,20 @@
     var sw = $('polity-swatch');
     sw.className = 'swatch' + (pol.pattern === 'hatch' ? ' hatch' : '');
     sw.style.backgroundColor = role === 'neighbor' ? '#9b9b9b' : pol.color || '#888';
-    $('polity-intro').textContent = pol.intro || '';
+    $('polity-intro').textContent = intro(pol);
     $('polity-box').hidden = false;
     if (app.classList.contains('panel-closed')) { app.classList.add('animate'); setPanel(true); }
   }
 
   // ---------- 오른쪽 패널 ----------
   function renderPanel(snap) {
-    $('panel-caption').textContent = snap.caption;
+    var x = txt(snap);
+    $('panel-caption').textContent = x.caption;
     $('panel-period').textContent = Model.periodLabel(snap);
-    $('panel-summary').textContent = snap.summary;
+    $('panel-summary').textContent = x.summary;
     var ol = $('panel-events');
     ol.textContent = '';
-    snap.events.forEach(function (ev) {
+    x.events.forEach(function (ev) {
       var li = document.createElement('li');
       var b = document.createElement('button');
       b.dataset.year = ev.year;
@@ -276,7 +286,7 @@
     });
     var qs = $('panel-questions');
     qs.textContent = '';
-    snap.questions.forEach(function (q, i) {
+    x.questions.forEach(function (q, i) {
       var d = document.createElement('details');
       var s = document.createElement('summary');
       s.textContent = '질문 ' + (i + 1);
@@ -315,12 +325,12 @@
     var s = document.createElement('strong');
     s.textContent = p.name;
     tip.appendChild(s);
-    tip.appendChild(document.createTextNode(pol.intro || ''));
+    tip.appendChild(document.createTextNode(intro(pol)));
     if (p.confidence === '논쟁') {
       var n = document.createElement('div');
       n.style.marginTop = '4px';
       n.style.opacity = '0.85';
-      n.textContent = '점선 부분은 학자마다 생각이 달라요.';
+      n.textContent = UI.disputed;
       tip.appendChild(n);
     }
     tip.hidden = false;
@@ -485,6 +495,10 @@
   if ($('map-wrap').clientHeight < 460) $('legend').classList.add('collapsed');
 
   // ---------- 시작 ----------
+  if (LEVEL === 'middle') {
+    $('level-badge').hidden = false;
+    document.title += ' (중학교)';
+  }
   buildTimeline();
   map.fit();
   setState(initialState());

@@ -119,8 +119,17 @@ for (const [key, fc] of Object.entries(geo)) {
     if (p.fillAs && !fc.features.some((g) => g.properties.name === p.fillAs)) fail(`${w}: fillAs "${p.fillAs}"인 도형이 같은 스냅샷에 없음`);
   });
 }
+// 수준별 글 규칙 (명세 spec-middle.md '글 기준')
+const LEVEL_RULES = {
+  elementary: { name: '초등', sentences: [2, 3], events: [3, 5], questions: [1, 2] },
+  middle: { name: '중등', sentences: [3, 4], events: [4, 6], questions: [1, 2] },
+};
+const missingMiddle = { snapshots: [], polities: [] };
 for (const [name, p] of Object.entries(content.polities)) {
-  if (!p.intro || p.intro.length < 5) fail(`polities.${name}: 한 줄 소개 없음`);
+  if (!p.intro || typeof p.intro !== 'object') { fail(`polities.${name}: intro가 {elementary, middle} 두 벌이 아님`); continue; }
+  if (!p.intro.elementary || p.intro.elementary.length < 5) fail(`polities.${name}: 초등 한 줄 소개 없음`);
+  if (!p.intro.middle) missingMiddle.polities.push(name);
+  else if (p.intro.middle.length < 5) fail(`polities.${name}: 중등 소개가 너무 짧음`);
 }
 
 // ---------- 3. 스냅샷 완결성 ----------
@@ -131,13 +140,26 @@ for (const k of Object.keys(geo)) if (!content.snapshots.some((s) => s.key === k
 for (const s of snaps) {
   const w = `스냅샷 ${s.key}`;
   if (s.keyT < s.fromT || s.keyT > s.toT) fail(`${w}: 키가 적용 범위(${s.from}~${s.to}) 밖에 있음`);
-  if (!s.caption) fail(`${w}: 캡션 없음`);
-  const sentences = (s.summary || '').split(/(?<=[.?!])\s+/).filter(Boolean);
-  if (sentences.length < 2 || sentences.length > 3) fail(`${w}: 시대 요약은 2~3문장 (지금 ${sentences.length}문장)`);
-  if (!Array.isArray(s.events) || s.events.length < 3 || s.events.length > 5) fail(`${w}: 사건은 3~5개 (지금 ${s.events?.length ?? 0}개)`);
-  (s.events || []).forEach((e) => { if (!Model.parseKey(e.year) || !e.text) fail(`${w}: 사건 형식 오류 ${JSON.stringify(e)}`); });
-  if (!Array.isArray(s.questions) || s.questions.length < 1 || s.questions.length > 2) fail(`${w}: 탐구 질문은 1~2개`);
+  for (const [lv, R] of Object.entries(LEVEL_RULES)) {
+    const x = s[lv];
+    if (!x) { if (lv === 'middle') missingMiddle.snapshots.push(s.key); else fail(`${w}: ${R.name} 글 없음`); continue; }
+    const wl = `${w} ${R.name}`;
+    if (!x.caption) fail(`${wl}: 캡션 없음`);
+    const sentences = (x.summary || '').split(/(?<=[.?!])\s+/).filter(Boolean);
+    if (sentences.length < R.sentences[0] || sentences.length > R.sentences[1]) fail(`${wl}: 시대 요약은 ${R.sentences.join('~')}문장 (지금 ${sentences.length}문장)`);
+    if (!Array.isArray(x.events) || x.events.length < R.events[0] || x.events.length > R.events[1]) fail(`${wl}: 사건은 ${R.events.join('~')}개 (지금 ${x.events?.length ?? 0}개)`);
+    (x.events || []).forEach((e) => { if (!Model.parseKey(e.year) || !e.text) fail(`${wl}: 사건 형식 오류 ${JSON.stringify(e)}`); });
+    if (!Array.isArray(x.questions) || x.questions.length < R.questions[0] || x.questions.length > R.questions[1]) fail(`${wl}: 탐구 질문은 ${R.questions.join('~')}개`);
+  }
 }
+// 중등 글은 5단계(글 쓰기) 전까지 비어 있을 수 있다 — 지금은 경고만
+if (missingMiddle.snapshots.length) note(`경고: 중등 글이 없는 스냅샷 ${missingMiddle.snapshots.length}장 (초등 글로 대신 보임)`);
+if (missingMiddle.polities.length) note(`경고: 중등 소개가 없는 나라 ${missingMiddle.polities.length}곳`);
+// 수준 읽기
+for (const [q, want] of [['', 'elementary'], ['?level=middle', 'middle'], ['?year=-108&level=middle', 'middle'], ['?level=high', 'elementary'], ['?level=Middle', 'elementary']]) {
+  if (Model.levelFromSearch(q) !== want) fail(`주소 "${q}"의 수준이 ${want}가 아님`);
+}
+if (Model.search('middle', '-108') !== '?level=middle&year=-108' || Model.search('elementary', '475') !== '?year=475') fail('딥링크 주소가 수준을 유지하지 않음');
 // 구간이 빈틈없이 이어지는지 (월 단위)
 for (let i = 0; i < snaps.length; i++) {
   if (i > 0 && snaps[i].fromT !== snaps[i - 1].toT + 1) fail(`스냅샷 ${snaps[i - 1].key}→${snaps[i].key}: 구간이 이어지지 않음`);

@@ -215,11 +215,29 @@
     };
   }
 
+  /*
+   * 수준: ?level=middle 이면 중등 글, 없거나 다른 값이면 초등 글.
+   * 글은 { elementary: …, middle: … } 두 벌로 두고, 중등 글이 비어 있으면 초등 글을 보여 준다.
+   */
+  var LEVELS = ['elementary', 'middle'];
+  function levelFromSearch(search) {
+    var m = /[?&]level=([^&#]*)/.exec(search || '');
+    return m && decodeURIComponent(m[1]) === 'middle' ? 'middle' : 'elementary';
+  }
+  function pick(two, level) {
+    if (!two || typeof two !== 'object') return two;
+    return two[level] || two.elementary;
+  }
+  // 주소 query: 초등은 ?year=… 만, 중등은 ?level=middle&year=…
+  function search(level, key) {
+    return (level === 'middle' ? '?level=middle&' : '?') + 'year=' + key;
+  }
+
   var Model = {
     MIN_YEAR: MIN_YEAR, MAX_YEAR: MAX_YEAR,
     parseKey: parseKey, startT: startT, endT: endT, yearOf: yearOf, monthOf: monthOf,
     yearT: yearT, nextYear: nextYear, yearText: yearText, keyLabel: keyLabel, fileKey: fileKey, keyOfFileKey: keyOfFileKey,
-    makeScale: makeScale,
+    makeScale: makeScale, LEVELS: LEVELS, levelFromSearch: levelFromSearch, pick: pick, search: search,
     featureStartT: featureStartT, featureEndT: featureEndT,
     prepare: prepare, indexAtT: indexAtT, stateForYear: stateForYear, stateForIndex: stateForIndex,
     stateForParam: stateForParam, step: step, isVisible: isVisible, visibleFeatures: visibleFeatures,
