@@ -86,6 +86,38 @@ button { font: inherit; color: inherit; }
 #map.has-hl .polity { opacity: 0.18; }
 #map.has-hl .polity.hl { opacity: 0.85; }
 #map.has-hl .islet:not(.hl) { opacity: 0.3; }
+/* 장면 제목 띄우기, 발표 모드 제목 */
+.scene-head .era-chip { margin-bottom: 6px; }
+.scene-head .st-caption { font-weight: 800; letter-spacing: -0.5px; word-break: keep-all; }
+.scene-head .st-period { margin-top: 4px; color: var(--ink-2); font-weight: 500; }
+.scene-toast {
+  position: absolute; top: 16px; left: 50%; z-index: 7; transform: translate(-50%, -6px);
+  padding: 12px 24px; border-radius: 14px; text-align: center; pointer-events: none;
+  background: rgba(255, 253, 248, 0.96); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.16);
+  opacity: 0; visibility: hidden; transition: opacity 0.25s, transform 0.25s, visibility 0s 0.25s;
+}
+.scene-toast.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity 0.25s, transform 0.25s; }
+.scene-toast .st-caption { font-size: 24px; }
+.scene-toast .st-period { font-size: 14px; }
+.present-card {
+  position: absolute; left: 16px; bottom: 56px; z-index: 4; max-width: min(42%, 760px);
+  padding: 14px 22px; border-radius: 16px; background: rgba(255, 253, 248, 0.95);
+  border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.16);
+}
+.present-card[hidden] { display: none; }
+.present-card .st-caption { font-size: clamp(19px, 1.8vw, 34px); line-height: 1.25; }
+.present-card .st-period { font-size: clamp(14px, 1vw, 19px); }
+.top-right { display: flex; align-items: center; gap: 14px; }
+.icon-btn.present-btn { font-size: 15px; font-weight: 700; padding: 0 14px; white-space: nowrap; }
+#app.present .present-btn { background: var(--ink); color: #fff; border-color: var(--ink); }
+#app.present .brand .sub { display: none; }
+#app.present .top-time { font-size: 32px; }
+#app.present .panel-toggle { display: none; }
+#app.present #hint { display: none; }
+/* 사건 자리 반짝임 */
+#map .flash circle { fill: none; stroke: #c0392b; stroke-width: 3; pointer-events: none; }
+#map .flash circle.core { fill: #c0392b; stroke: #fff; stroke-width: 2; }
+#map .flash text { font: 800 15px var(--font); fill: #1d1a16; stroke: #fff; stroke-width: 4; paint-order: stroke; pointer-events: none; }
 .fx-pulse { fill: none; stroke-linejoin: round; pointer-events: none; }
 #map .ghost { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

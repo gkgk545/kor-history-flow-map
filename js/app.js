@@ -138,13 +138,14 @@
       renderedSig = sig;
       map.render(vis, prevFeaturesFor(st.idx), { sceneChanged: newSnap });
       renderLegend(vis);
-      if (newSnap) renderPanel(snap);
+      if (newSnap) { renderPanel(snap); showSceneToast(snap); }
       else markCurrentEvent();
     } else {
       markCurrentEvent();
     }
     renderTime();
     renderPoints();
+    renderPresentCard();
     if (!opts.silent) remember();
   }
 
@@ -294,6 +295,7 @@
           if (i2 >= 0) st = { idx: i2, t: Math.max(t2, snaps[i2].fromT), hasMonth: false };
         }
         setState(st);
+        flashEvent(ev);
       });
       li.appendChild(b);
       ol.appendChild(li);
@@ -478,6 +480,82 @@
     }
   });
 
+  // ---------- 장면 제목 띄우기 ----------
+  // 장면이 바뀌면 지도 위쪽(범례 오른쪽 공간 가운데)에 시대·제목·기간을 2초 동안 보여 준다. 첫 화면과 발표 모드에서는 띄우지 않는다.
+  var booted = false, toastTimer = null;
+  function sceneHead(box, snap) {
+    var era = Model.eraAt(A.eras, snap.keyT);
+    box.querySelector('.era-chip').textContent = era ? era.name : '';
+    box.querySelector('.era-chip').style.background = era ? era.color : '';
+    box.querySelector('.st-caption').textContent = txt(snap).caption;
+    box.querySelector('.st-period').textContent = Model.periodLabel(snap);
+  }
+  function showSceneToast(snap) {
+    if (!booted || app.classList.contains('present')) return;
+    var box = $('scene-toast');
+    sceneHead(box, snap);
+    var lg = $('legend'), wrap = $('map-wrap').getBoundingClientRect();
+    var left = lg.classList.contains('collapsed') ? 0 : lg.getBoundingClientRect().right - wrap.left;
+    box.style.left = left + (wrap.width - left) / 2 + 'px';
+    box.style.maxWidth = Math.max(260, wrap.width - left - 120) + 'px';
+    box.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { box.classList.remove('show'); }, 2000);
+  }
+
+  // ---------- 사건 자리 반짝임 ----------
+  // 사건 글에 도읍·전투 점의 이름(또는 '대첩·전투' 등을 뗀 이름, 괄호 안 다른 이름)이 들어 있고
+  // 그 점이 지금 시점에 해당하면, 지도 위 그 자리를 반짝인다.
+  function pointKeys(name) {
+    var keys = [];
+    var alias = /\(([^)]*)\)/.exec(name);
+    [name.replace(/\s*\(.*\)/, ''), alias && alias[1]].forEach(function (k) {
+      if (!k) return;
+      keys.push(k);
+      var short = k.replace(/\s*(대첩|전투|해전|작전)$/, '');
+      if (short !== k) keys.push(short);
+      if (/성$/.test(short) && short.length > 2) keys.push(short.slice(0, -1));
+    });
+    return keys.filter(function (k) { return k.length >= 2; });
+  }
+  function flashEvent(ev) {
+    var hits = (A.points || []).filter(function (f) {
+      return Model.isVisible(f, state.t) && pointKeys(f.properties.name).some(function (k) { return ev.text.indexOf(k) >= 0; });
+    });
+    if (hits.length) map.flash(hits);
+  }
+
+  // ---------- 발표 모드 ----------
+  // 전자칠판용: 패널·범례를 접고 이름표와 연도를 크게, 지금 장면 제목을 지도 왼쪽 아래에 크게 둔다
+  var beforePresent = null;
+  function renderPresentCard() { if (app.classList.contains('present')) sceneHead($('present-card'), snaps[state.idx]); }
+  function setPresent(on) {
+    var b = $('present-toggle');
+    if (on) {
+      beforePresent = { panelOpen: !app.classList.contains('panel-closed'), legendCollapsed: $('legend').classList.contains('collapsed') };
+      app.classList.add('present');
+      setPanel(false);
+      $('legend').classList.add('collapsed');
+      $('scene-toast').classList.remove('show');
+      dismissHint();
+      map.setLabelScale(1.5);
+      renderPresentCard();
+    } else {
+      app.classList.remove('present');
+      if (beforePresent) {
+        setPanel(beforePresent.panelOpen);
+        $('legend').classList.toggle('collapsed', beforePresent.legendCollapsed);
+      }
+      map.setLabelScale(1);
+    }
+    $('present-card').hidden = !on;
+    $('legend-toggle').setAttribute('aria-expanded', $('legend').classList.contains('collapsed') ? 'false' : 'true');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.textContent = on ? '발표 모드 끄기' : '발표 모드';
+    setTimeout(function () { fitMap(); layoutAxis(); renderTime(); }, 80);
+  }
+  $('present-toggle').addEventListener('click', function () { setPresent(!app.classList.contains('present')); });
+
   // ---------- 그 밖의 조작 ----------
   function dismissHint() { $('hint').hidden = true; }
   $('hint-close').addEventListener('click', dismissHint);
@@ -522,4 +600,5 @@
   buildTimeline();
   fitMap();
   setState(initialState());
+  booted = true;
 })();

@@ -143,6 +143,7 @@
     this.gHl = el('g', { class: 'hl' }, clipped);
     this.gScreen = el('g', { class: 'screen' }, svg); // 화면 좌표(작은 섬 표시)
     this.gPoints = el('g', { class: 'points' }, svg); // 화면 좌표(도읍·전투 점)
+    this.gFlash = el('g', { class: 'flashes' }, svg); // 화면 좌표(사건 자리 반짝임)
     this.points = [];
   };
 
@@ -297,7 +298,10 @@
       // 이름표: 보이는 조각 중 가장 큰 조각의 anchor
       var best = fs.reduce(function (a, f) { var ar = geomArea(f.geometry); return !a || ar > a.ar ? { f: f, ar: ar } : a; }, null);
       var isIslet = !!p0.fillAs;
-      self.labels.push({ text: name, at: best.f.properties.anchor, cls: isIslet ? 'islet' : isZone ? 'zone' : p0.role, name: name });
+      var lbl = { text: name, at: best.f.properties.anchor, cls: isIslet ? 'islet' : isZone ? 'zone' : p0.role, name: name };
+      // 우리 역사 나라 이름표는 영역 넓이에 맞춰 크기를 정한다
+      if (p0.role === 'korea' && !isIslet && !isZone) lbl.area = fs.reduce(function (s, f) { return s + geomArea(f.geometry); }, 0);
+      self.labels.push(lbl);
       if (isIslet) self.labels[self.labels.length - 1].dy = name === '독도' ? 15 : -15;
       if (isIslet) {
         // 작은 섬은 화면에서 점으로도 보이게 한다
@@ -405,8 +409,8 @@
       d.className = 'lbl ' + l.cls;
       d.textContent = l.text;
       box.appendChild(d);
-      return { el: d, w: project(l.at), name: l.name, dy: l.dy || 0, pri: PRI[l.cls] == null ? 6 : PRI[l.cls] };
-    }).sort(function (a, b) { return a.pri - b.pri; });
+      return { el: d, w: project(l.at), name: l.name, dy: l.dy || 0, pri: PRI[l.cls] == null ? 6 : PRI[l.cls], area: l.area || 0 };
+    }).sort(function (a, b) { return a.pri - b.pri || b.area - a.area; }); // 넓은 나라 이름표가 먼저 자리를 잡는다
     this._sizesDirty = true;
     var self = this;
     this.gScreen.textContent = '';
@@ -425,8 +429,8 @@
     var pats = this.defs.querySelectorAll('pattern');
     for (var i = 0; i < pats.length; i++) pats[i].setAttribute('patternTransform', 'rotate(45) scale(' + (1 / v.s).toFixed(4) + ')');
     var W = this.svg.clientWidth, H = this.svg.clientHeight;
-    // 이름표 크기: 지도 너비에 맞춤
-    var base = Math.max(14, Math.min(22, W / 52));
+    // 이름표 크기: 지도 너비에 맞춤 (발표 모드에서는 labelScale배)
+    var base = Math.max(14, Math.min(22, W / 52)) * (this.labelScale || 1);
     if (base !== this._labelBase) {
       this._labelBase = base;
       this._sizesDirty = true;
@@ -437,6 +441,13 @@
     }
     var els = this.labelEls || [];
     if (this._sizesDirty) {
+      // 나라 이름표: 처음 보기 크기에서 영역 한 변 길이(px)에 비례, 기본 크기의 0.75~1.6배
+      var fs0 = this.fitScale;
+      els.forEach(function (o) {
+        if (!o.area) return;
+        var side = Math.sqrt(o.area) * fs0;
+        o.el.style.fontSize = Math.max(base * 0.75, Math.min(base * 1.6, 9 + side / 9)).toFixed(1) + 'px';
+      });
       els.forEach(function (o) { o.el.style.visibility = ''; o.bw = o.el.offsetWidth; o.bh = o.el.offsetHeight; });
       this._sizesDirty = false;
     }
@@ -456,9 +467,42 @@
       o.el.setAttribute('cx', o.w[0] * v.s + v.tx);
       o.el.setAttribute('cy', o.w[1] * v.s + v.ty);
     });
-    (this.pointEls || []).forEach(function (o) {
+    (this.pointEls || []).concat(this.flashEls || []).forEach(function (o) {
       o.el.setAttribute('transform', 'translate(' + (o.w[0] * v.s + v.tx).toFixed(1) + ',' + (o.w[1] * v.s + v.ty).toFixed(1) + ')');
     });
+  };
+
+  MapView.prototype.setLabelScale = function (k) {
+    this.labelScale = k;
+    this._labelBase = null;
+    this._applyView();
+  };
+
+  /*
+   * 사건 자리 반짝임: 사건을 누르면 그 사건의 도읍·전투 자리에 동심원이 퍼지고 이름이 잠깐 보인다.
+   * 점 층을 꺼 두었어도 보인다. 화면 좌표라 확대해도 크기가 같다.
+   */
+  MapView.prototype.flash = function (features) {
+    var self = this;
+    (this.flashEls || []).forEach(function (o) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); });
+    var still = reducedMotion() || !canAnimate(this.svg);
+    this.flashEls = features.map(function (f) {
+      var g = el('g', { class: 'flash' }, self.gFlash);
+      [0, 1, 2].forEach(function (i) {
+        var c = el('circle', { r: 10 + i * 12 }, g);
+        if (!still) c.animate([{ r: 6, opacity: 0.95 }, { r: 46, opacity: 0 }], { duration: 1200, delay: i * 260, iterations: 2, easing: 'ease-out', fill: 'backwards' });
+      });
+      el('circle', { class: 'core', r: 6 }, g);
+      var t = el('text', { y: -24, 'text-anchor': 'middle' }, g);
+      t.textContent = f.properties.name;
+      return { el: g, w: project(f.geometry.coordinates) };
+    });
+    this._applyView();
+    var mine = this.flashEls;
+    setTimeout(function () {
+      mine.forEach(function (o) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); });
+      if (self.flashEls === mine) self.flashEls = [];
+    }, 3000);
   };
 
   // ---------- 보기 범위 ----------
@@ -470,6 +514,7 @@
     var pad = Math.max(0, Math.min(W * 0.4, this.padLeft || 0));
     var s = Math.min((W - pad) / (c[0] - a[0]), H / (c[1] - a[1]));
     this.fitScale = s;
+    this._sizesDirty = true;
     this.view = { s: s, tx: pad + (W - pad - (a[0] + c[0]) * s) / 2, ty: (H - (a[1] + c[1]) * s) / 2 };
     this._applyView();
   };

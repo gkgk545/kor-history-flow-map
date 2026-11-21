@@ -190,6 +190,43 @@ await check('장면이 바뀌면 옛 지도가 서서히 사라지고 남지 않
   const ghosts = document.querySelectorAll('#map .ghosts > *').length;
   await sleep(900);
   return (ghosts > 0 && document.querySelectorAll('#map .ghosts > *').length === 0) || ghosts;`));
+await check('장면이 바뀌면 지도 위에 장면 제목을 2초 띄움(첫 화면에서는 안 띄움)', async () => {
+  await open('year=475');
+  return ev(`${H}
+    const first = $('scene-toast').classList.contains('show');
+    $('next').click(); await sleep(300);
+    const on = $('scene-toast').classList.contains('show') && $('scene-toast').textContent.includes('553년');
+    await sleep(2200);
+    return (!first && on && !$('scene-toast').classList.contains('show')) || { first, on };`);
+});
+await check('사건을 누르면 그 자리가 반짝임(612년 → 살수 대첩, 점 층이 꺼져 있어도)', async () => {
+  await open('year=600');
+  return ev(`${H}
+    [...document.querySelectorAll('#panel-events button')].find((b) => b.dataset.year === '612').click(); await sleep(100);
+    const names = [...document.querySelectorAll('#map .flash text')].map((t) => t.textContent);
+    await sleep(3200);
+    return (names.join() === '살수 대첩' && !document.querySelector('#map .flash')) || names;`);
+});
+await check('나라 이름표 크기가 영역 넓이를 따름(480년 고구려 > 백제 > 신라)', async () => {
+  await open('year=480');
+  return ev(`
+    const size = (n) => parseFloat([...document.querySelectorAll('#map-labels .lbl.korea')].find((l) => l.textContent === n).style.fontSize);
+    return (size('고구려') > size('백제') && size('백제') > size('신라')) || [size('고구려'), size('백제'), size('신라')];`);
+});
+await check('발표 모드: 패널·범례 접고 이름표 크게, 장면 제목 카드, 끄면 되돌아옴', async () => {
+  await open('year=676');
+  return ev(`${H}
+    const lbl = () => parseFloat(getComputedStyle(document.querySelector('#map-labels .lbl.sea')).fontSize);
+    const s0 = lbl();
+    $('present-toggle').click(); await sleep(500);
+    const on = $('app').classList.contains('panel-closed') && $('legend').classList.contains('collapsed') && !$('present-card').hidden
+      && $('present-card').textContent.includes('676년') && lbl() > s0 * 1.3 && $('present-toggle').getAttribute('aria-pressed') === 'true';
+    $('next').click(); await sleep(100);
+    const follows = $('present-card').textContent.includes('800년') && !$('scene-toast').classList.contains('show');
+    $('present-toggle').click(); await sleep(500);
+    const off = !$('app').classList.contains('panel-closed') && $('present-card').hidden && Math.abs(lbl() - s0) < 0.5;
+    return (on && follows && off) || { on, follows, off };`);
+});
 await check('패널 접기', () => ev(`${H} $('panel-toggle').click(); await sleep(350); return $('app').classList.contains('panel-closed');`));
 await check('지도 확대', () => ev(`${H} const a = $('viewport').getAttribute('transform'); $('zoom-in').click(); return a !== $('viewport').getAttribute('transform');`));
 

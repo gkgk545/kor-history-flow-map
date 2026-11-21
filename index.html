@@ -14,9 +14,12 @@
       <h1>한국사 영역 타임라인 <span id="level-badge" class="level-badge" hidden>중학교</span></h1>
       <p class="sub">기원전 400년부터 오늘날까지, 나라들의 세력 범위</p>
     </div>
-    <div class="top-now" aria-live="polite">
-      <span id="top-era" class="era-chip"></span>
-      <span id="top-time" class="top-time"></span>
+    <div class="top-right">
+      <div class="top-now" aria-live="polite">
+        <span id="top-era" class="era-chip"></span>
+        <span id="top-time" class="top-time"></span>
+      </div>
+      <button id="present-toggle" class="icon-btn present-btn" aria-pressed="false">발표 모드</button>
     </div>
   </header>
 
@@ -55,6 +58,17 @@
         <button id="zoom-in" class="icon-btn" aria-label="지도 크게">＋</button>
         <button id="zoom-out" class="icon-btn" aria-label="지도 작게">－</button>
         <button id="zoom-reset" class="icon-btn" aria-label="지도 처음 크기로">⟲</button>
+      </div>
+
+      <div id="scene-toast" class="scene-head scene-toast" aria-hidden="true">
+        <span class="era-chip"></span>
+        <div class="st-caption"></div>
+        <div class="st-period"></div>
+      </div>
+      <div id="present-card" class="scene-head present-card" hidden>
+        <span class="era-chip"></span>
+        <div class="st-caption"></div>
+        <div class="st-period"></div>
       </div>
 
       <div id="tooltip" class="tooltip" hidden></div>
