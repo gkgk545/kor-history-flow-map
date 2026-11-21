@@ -137,6 +137,36 @@
     this.gLines = el('g', { class: 'lines' }, clipped);
     this.gHl = el('g', { class: 'hl' }, clipped);
     this.gScreen = el('g', { class: 'screen' }, svg); // 화면 좌표(작은 섬 표시)
+    this.gPoints = el('g', { class: 'points' }, svg); // 화면 좌표(도읍·전투 점)
+    this.points = [];
+  };
+
+  /*
+   * 도읍·전투 점: 그 시점에 보이는 점만 받는다. 표시는 화면 좌표라 확대해도 크기가 같다.
+   * 보이는 표시(도읍 네모, 전투 동그라미)와 별도로 지름 48px의 투명한 터치 영역을 둔다.
+   * 위치 학설이 갈리는 점(confidence "논쟁")은 점선 테두리로 그린다.
+   */
+  MapView.prototype.setPoints = function (points) {
+    var sig = points.map(function (f) { return f.properties.name + f.properties.start; }).join('|');
+    if (sig === this._pointSig) return;
+    this._pointSig = sig;
+    this.points = points;
+    var g = this.gPoints;
+    g.textContent = '';
+    this.pointEls = points.map(function (f) {
+      var p = f.properties;
+      var grp = el('g', { class: 'pt ' + (p.kind === '도읍' ? 'capital' : 'battle') + (p.confidence === '논쟁' ? ' disputed' : '') }, g);
+      var mark = p.kind === '도읍'
+        ? el('rect', { x: -6.5, y: -6.5, width: 13, height: 13, rx: 2 }, grp)
+        : el('circle', { r: 7 }, grp);
+      if (p.confidence === '논쟁') mark.setAttribute('stroke-dasharray', '3 2');
+      if (p.kind === '전투') el('path', { class: 'x', d: 'M-3.2,-3.2L3.2,3.2M3.2,-3.2L-3.2,3.2' }, grp);
+      var hit = el('circle', { class: 'hit', r: 24 }, grp);
+      hit.__point = f;
+      return { el: grp, w: project(f.geometry.coordinates) };
+    });
+    this._buildLabels();
+    this._applyView();
   };
 
   MapView.prototype._color = function (name, role) {
@@ -294,8 +324,11 @@
   MapView.prototype._buildLabels = function () {
     var box = this.labelsEl;
     box.textContent = '';
-    var PRI = { korea: 0, islet: 1, line: 2, 'line black': 2, zone: 2, sea: 3, neighbor: 4, river: 5 };
-    this.labelEls = this.labels.map(function (l) {
+    var PRI = { korea: 0, point: 0.5, islet: 1, line: 2, 'line black': 2, zone: 2, sea: 3, neighbor: 4, river: 5 };
+    var pointLabels = (this.points || []).map(function (f) {
+      return { text: f.properties.name, at: f.geometry.coordinates, cls: 'point', dy: -17 };
+    });
+    this.labelEls = this.labels.concat(pointLabels).map(function (l) {
       var d = document.createElement('div');
       d.className = 'lbl ' + l.cls;
       d.textContent = l.text;
@@ -350,6 +383,9 @@
     (this.isletEls || []).forEach(function (o) {
       o.el.setAttribute('cx', o.w[0] * v.s + v.tx);
       o.el.setAttribute('cy', o.w[1] * v.s + v.ty);
+    });
+    (this.pointEls || []).forEach(function (o) {
+      o.el.setAttribute('transform', 'translate(' + (o.w[0] * v.s + v.tx).toFixed(1) + ',' + (o.w[1] * v.s + v.ty).toFixed(1) + ')');
     });
   };
 
@@ -448,11 +484,19 @@
       var t = document.elementFromPoint(e.clientX, e.clientY);
       return t && t.__feature ? t.__feature : null;
     }
+    function pointAt(e) {
+      var t = document.elementFromPoint(e.clientX, e.clientY);
+      return t && t.__point ? t.__point : null;
+    }
     function hoverAt(e) {
+      var pt = pointAt(e);
+      if (pt) { self._emit('pointhover', pt, e.clientX, e.clientY); return; }
       var f = featureAt(e);
       if (f) self._emit('hover', f, e.clientX, e.clientY); else self._emit('leave');
     }
     function tapAt(e) {
+      var pt = pointAt(e);
+      if (pt) { self._emit('pointtap', pt, e.clientX, e.clientY); return; }
       var f = featureAt(e);
       self._emit('tap', f, e.clientX, e.clientY);
     }

@@ -16,8 +16,8 @@
   var STORE_KEY = LEVEL === 'middle' ? 'hist-timeline:last:middle' : 'hist-timeline:last';
   // 수준마다 다른 화면 문구
   var UI = {
-    elementary: { disputed: '점선 부분은 학자마다 생각이 달라요.' },
-    middle: { disputed: '점선은 학설이 갈리는 경계입니다.' },
+    elementary: { disputed: '점선 부분은 학자마다 생각이 달라요.', disputedPoint: '정확한 자리는 학자마다 생각이 달라요.' },
+    middle: { disputed: '점선은 학설이 갈리는 경계입니다.', disputedPoint: '위치는 학설이 갈립니다.' },
   }[LEVEL];
   function txt(snap) { return snap[LEVEL] || snap.elementary; }
   function intro(pol) { return Model.pick(pol && pol.intro, LEVEL) || ''; }
@@ -36,6 +36,7 @@
   var playing = false;
   var speedIdx = 1;
   var stops = Model.playStops(snaps, A.eras);
+  var showPoints = false; // 도읍·전투 점 (기본은 꺼 둠)
 
   // ---------- 시작 상태 ----------
   function initialState() {
@@ -139,7 +140,14 @@
       markCurrentEvent();
     }
     renderTime();
+    renderPoints();
     if (!opts.silent) remember();
+  }
+
+  // 그 시점에 해당하는 도읍·전투 점만
+  function renderPoints() {
+    var list = showPoints ? (A.points || []).filter(function (f) { return Model.isVisible(f, state.t); }) : [];
+    map.setPoints(list);
   }
 
   function renderTime() {
@@ -319,20 +327,20 @@
 
   // ---------- 툴팁 ----------
   var tipTimer = null;
-  function showTip(f, x, y, autoHide) {
+  function showTip(f, x, y, autoHide, isPoint) {
     var tip = $('tooltip');
     var p = f.properties;
     var pol = A.polities[p.name] || {};
     tip.innerHTML = '';
     var s = document.createElement('strong');
-    s.textContent = p.name;
+    s.textContent = isPoint ? p.name + ' (' + p.kind + ')' : p.name;
     tip.appendChild(s);
-    tip.appendChild(document.createTextNode(intro(pol)));
+    tip.appendChild(document.createTextNode(isPoint ? Model.pick(p.desc, LEVEL) : intro(pol)));
     if (p.confidence === '논쟁') {
       var n = document.createElement('div');
       n.style.marginTop = '4px';
       n.style.opacity = '0.85';
-      n.textContent = UI.disputed;
+      n.textContent = isPoint ? UI.disputedPoint : UI.disputed;
       tip.appendChild(n);
     }
     tip.hidden = false;
@@ -351,6 +359,8 @@
   map.on('hover', function (f, x, y) { hover(f.properties.name); showTip(f, x, y, false); });
   map.on('leave', function () { hover(null); hideTip(); });
   map.on('gesture', function () { hideTip(); });
+  map.on('pointhover', function (f, x, y) { hover(null); showTip(f, x, y, false, true); });
+  map.on('pointtap', function (f, x, y) { showTip(f, x, y, true, true); });
   map.on('tap', function (f, x, y) {
     if (!f) { unpin(); hideTip(); return; }
     var name = f.properties.name;
@@ -473,6 +483,7 @@
   function dismissHint() { $('hint').hidden = true; }
   $('hint-close').addEventListener('click', dismissHint);
   $('prev-toggle').addEventListener('change', function (e) { map.setShowPrev(e.target.checked); });
+  $('points-toggle').addEventListener('change', function (e) { showPoints = e.target.checked; renderPoints(); });
   $('legend-toggle').addEventListener('click', function () {
     var c = $('legend').classList.toggle('collapsed');
     $('legend-toggle').setAttribute('aria-expanded', c ? 'false' : 'true');

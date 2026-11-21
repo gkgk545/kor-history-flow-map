@@ -258,6 +258,8 @@ function buildDataJs() {
       .map((f) => ({ name: f.properties.name, lines: f.geometry.coordinates, schematic: !!f.properties.schematic })),
     labels: read('labels.geojson').features.map((f) => ({ ...f.properties, at: f.geometry.coordinates })),
     eras: content.eras,
+    // 도읍·전투 점 (scripts/points-src.mjs → data/points.geojson)
+    points: read('points.geojson').features,
     polities: content.polities,
     snapshots: content.snapshots.map((s) => ({ ...s, features: shapes[s.key] || [] })),
   };

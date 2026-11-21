@@ -262,6 +262,40 @@ const narrow = fullSc.bands.map((b) => ({ name: b.era.name, px: (b.f1 - b.f0) * 
 for (const b of narrow) if (b.px < MIN_BAND_PX) fail(`시대 띠 ${b.name}: 1024px 화면에서 ${b.px.toFixed(0)}px (${MIN_BAND_PX}px보다 좁음)`);
 note(`기원전 400년~2026년 ${yr}개 해, 0년 없음. 1024px 화면 띠 너비 ${narrow.map((b) => b.name + ' ' + b.px.toFixed(0)).join(', ')}px`);
 
+// ---------- 도읍·전투 점 ----------
+section('도읍·전투 점 (data/points.geojson)');
+const ptFC = checkFC('points.geojson');
+const PT_KINDS = ['도읍', '전투'];
+const BBOX = [115, 32, 135, 48];
+if (ptFC) {
+  const kinds = { 도읍: 0, 전투: 0 };
+  ptFC.features.forEach((f, i) => {
+    const p = f.properties || {};
+    const w = `점 #${i} ${p.name ?? '(이름 없음)'}`;
+    if (f.geometry?.type !== 'Point') { fail(`${w}: Point가 아님`); return; }
+    const [x, y] = f.geometry.coordinates;
+    if (x < BBOX[0] || x > BBOX[2] || y < BBOX[1] || y > BBOX[3]) fail(`${w}: 바탕 지도 범위 밖`);
+    if (typeof p.name !== 'string' || !p.name.trim()) fail(`${w}: name 없음`);
+    if (!PT_KINDS.includes(p.kind)) fail(`${w}: 종류(kind)는 도읍 또는 전투`); else kinds[p.kind]++;
+    if (!Number.isInteger(p.start) || !Number.isInteger(p.end) || p.start > p.end) fail(`${w}: start/end 오류`);
+    if (p.start === 0 || p.end === 0) fail(`${w}: 0년`);
+    if (p.start < Model.MIN_YEAR || p.end > Model.MAX_YEAR) fail(`${w}: 타임라인 범위 밖`);
+    for (const k of ['startMonth', 'endMonth']) if (p[k] != null && !(Number.isInteger(p[k]) && p[k] >= 1 && p[k] <= 12)) fail(`${w}: ${k}는 1~12`);
+    for (const lv of Model.LEVELS) if (typeof p.desc?.[lv] !== 'string' || p.desc[lv].length < 8) fail(`${w}: ${LEVEL_RULES[lv].name} 설명 없음`);
+    if (!CONF.includes(p.confidence)) fail(`${w}: confidence는 "대략" 또는 "논쟁"`);
+    if (typeof p.basis !== 'string' || p.basis.trim().length < 2) fail(`${w}: basis(근거) 없음`);
+    // 자기 시기에만 보이는지 (앞뒤 한 달 밖에서는 숨음)
+    const a = Model.featureStartT(p), z = Model.featureEndT(p);
+    if (!Model.isVisible(f, a) || !Model.isVisible(f, z) || Model.isVisible(f, a - 1) || Model.isVisible(f, z + 1)) fail(`${w}: 자기 시기(${p.start}~${p.end})에만 보이지 않음`);
+    if (!snaps.some((s) => s.fromT <= z && s.toT >= a)) fail(`${w}: 어느 장면에서도 보이지 않음`);
+  });
+  if (kinds.도읍 < 12 || kinds.전투 < 15) fail(`도읍 ${kinds.도읍}곳, 전투 ${kinds.전투}곳 — 명세(도읍 15곳 안팎, 전투 20곳 안팎)보다 적음`);
+  const appJs = read('js/app.js');
+  if (!/points-toggle/.test(read('index.html')) || /id="points-toggle"[^>]*checked/.test(read('index.html'))) fail('범례에 "도읍·전투 보기" 상자가 없거나 기본으로 켜져 있음');
+  if (!/Model\.isVisible\(f, state\.t\)/.test(appJs)) fail('js/app.js가 그 시점에 보이는 점만 고르지 않음');
+  note(`도읍 ${kinds.도읍}곳, 전투 ${kinds.전투}곳, 논쟁 위치 ${ptFC.features.filter((f) => f.properties.confidence === '논쟁').length}곳`);
+}
+
 // ---------- 4. 존속 연도와 스냅샷 범위 ----------
 section('존속 연도와 스냅샷 범위');
 for (const s of snaps) {
@@ -312,7 +346,7 @@ const seaLabels = JSON.parse(read('data/labels.geojson')).features.filter((f) =>
 if (!seaLabels.includes('동해')) fail('바다 이름표에 "동해"가 없음');
 // 금지어: 도형 이름·이름표·화면 글·소스 어디에도
 const textSources = {
-  'data/*.geojson': snapFiles.map((f) => read('data/' + f)).join('\n') + read('data/labels.geojson'),
+  'data/*.geojson': snapFiles.map((f) => read('data/' + f)).join('\n') + read('data/labels.geojson') + read('data/points.geojson'),
   'data/content.json': read('data/content.json'),
   'index.html': fs.existsSync(path.join(ROOT, 'index.html')) ? read('index.html') : '',
 };
@@ -386,7 +420,8 @@ if (fs.existsSync(path.join(DATA, 'data.js'))) {
   vm.createContext(c2);
   vm.runInContext(read('data/data.js'), c2);
   const A = c2.window.ATLAS;
-  const same = A && A.snapshots.length === content.snapshots.length &&
+  const same = A && A.snapshots.length === content.snapshots.length && ptFC &&
+    JSON.stringify(A.points) === JSON.stringify(ptFC.features) &&
     A.snapshots.every((s) => JSON.stringify(s.features) === JSON.stringify(geo[s.key]?.features) &&
       JSON.stringify({ ...s, features: undefined }) === JSON.stringify({ ...content.snapshots.find((c) => c.key === s.key), features: undefined }));
   if (!same) fail('data/data.js가 data/*.geojson·content.json과 다름 — node scripts/build-data.mjs 를 다시 실행하세요');
