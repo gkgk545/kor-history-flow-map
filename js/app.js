@@ -499,12 +499,18 @@
   });
   $('zoom-in').addEventListener('click', function () { map.zoomBy(1.4); });
   $('zoom-out').addEventListener('click', function () { map.zoomBy(1 / 1.4); });
-  $('zoom-reset').addEventListener('click', function () { map.fit(); });
+  $('zoom-reset').addEventListener('click', function () { fitMap(); });
+  // 처음 범위: 펼친 범례 오른쪽 공간에 맞춤
+  function fitMap() {
+    var lg = $('legend');
+    map.padLeft = lg.classList.contains('collapsed') ? 0 : lg.getBoundingClientRect().right - $('map-wrap').getBoundingClientRect().left;
+    map.fit();
+  }
 
   var resizeTimer = null;
   function onResize() {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () { map.fit(); layoutAxis(); renderTime(); }, 60);
+    resizeTimer = setTimeout(function () { fitMap(); layoutAxis(); renderTime(); }, 60);
   }
   if (window.ResizeObserver) new ResizeObserver(onResize).observe($('map-wrap'));
   else window.addEventListener('resize', onResize);
@@ -519,6 +525,6 @@
     $('panel-disclaimer').textContent = UI.panelDisclaimer;
   }
   buildTimeline();
-  map.fit();
+  fitMap();
   setState(initialState());
 })();

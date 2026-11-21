@@ -390,13 +390,15 @@
   };
 
   // ---------- 보기 범위 ----------
+  // padLeft: 왼쪽 위 범례가 차지한 너비. 처음 범위를 범례 오른쪽 공간에 맞춘다
   MapView.prototype.fit = function (bounds) {
     var b = bounds || DEFAULT_VIEW;
     var a = project([b[0], b[3]]), c = project([b[2], b[1]]);
     var W = this.svg.clientWidth || 800, H = this.svg.clientHeight || 600;
-    var s = Math.min(W / (c[0] - a[0]), H / (c[1] - a[1]));
+    var pad = Math.max(0, Math.min(W * 0.4, this.padLeft || 0));
+    var s = Math.min((W - pad) / (c[0] - a[0]), H / (c[1] - a[1]));
     this.fitScale = s;
-    this.view = { s: s, tx: (W - (a[0] + c[0]) * s) / 2, ty: (H - (a[1] + c[1]) * s) / 2 };
+    this.view = { s: s, tx: pad + (W - pad - (a[0] + c[0]) * s) / 2, ty: (H - (a[1] + c[1]) * s) / 2 };
     this._applyView();
   };
 
