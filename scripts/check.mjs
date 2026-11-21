@@ -26,7 +26,10 @@ vm.runInContext(read('js/model.js'), ctx);
 const Model = ctx.Model;
 
 const DISCLAIMER = '세력 범위는 대략적인 모습입니다.';
-const FORBIDDEN = ['임나', '한사군', '낙랑', '안동도호부', '일본해', 'Sea of Japan', '현도군', '진번군', '임둔군'];
+// 어디서나 넣지 않는 표기
+const FORBIDDEN = ['임나', '한사군', '안동도호부', '일본해', 'Sea of Japan', '현도군', '진번군', '임둔군'];
+// 도형·이름표·점·화면 고정 문구·초등 글에서는 넣지 않고, 중등 글에서만 쓰는 표기 (명세 Q8·Q23)
+const MIDDLE_ONLY = ['한 군현', '낙랑'];
 const ROLES = ['korea', 'neighbor'];
 const CONF = ['대략', '논쟁'];
 
@@ -344,15 +347,23 @@ for (const s of snaps) {
 }
 const seaLabels = JSON.parse(read('data/labels.geojson')).features.filter((f) => f.properties.kind === 'sea').map((f) => f.properties.name);
 if (!seaLabels.includes('동해')) fail('바다 이름표에 "동해"가 없음');
-// 금지어: 도형 이름·이름표·화면 글·소스 어디에도
+// 금지어: 수준에 따라 나눈다
+const stripMiddle = (o) => JSON.parse(JSON.stringify(o, (k, v) => (k === 'middle' ? undefined : v)));
+const middleOnly = (o) => { const out = []; JSON.stringify(o, (k, v) => { if (k === 'middle' && v) out.push(JSON.stringify(v)); return v; }); return out.join('\n'); };
+const pointsRaw = JSON.parse(read('data/points.geojson'));
 const textSources = {
-  'data/*.geojson': snapFiles.map((f) => read('data/' + f)).join('\n') + read('data/labels.geojson') + read('data/points.geojson'),
-  'data/content.json': read('data/content.json'),
+  'data/s-*.geojson·labels': snapFiles.map((f) => read('data/' + f)).join('\n') + read('data/labels.geojson'),
+  'data/points.geojson(중등 설명 제외)': JSON.stringify(stripMiddle(pointsRaw)),
+  'data/content.json(초등 글·공통)': JSON.stringify(stripMiddle(content)),
   'index.html': fs.existsSync(path.join(ROOT, 'index.html')) ? read('index.html') : '',
+  'js/*.js': ['js/app.js', 'js/map.js', 'js/model.js'].map(read).join('\n'),
 };
+const middleText = middleOnly(content) + middleOnly(pointsRaw);
 for (const [src, text] of Object.entries(textSources)) {
-  for (const w of FORBIDDEN) if (text.includes(w)) fail(`${src}: 넣지 않기로 한 표기 "${w}"가 있음`);
+  for (const w of [...FORBIDDEN, ...MIDDLE_ONLY]) if (text.includes(w)) fail(`${src}: 넣지 않기로 한 표기 "${w}"가 있음`);
 }
+for (const w of FORBIDDEN) if (middleText.includes(w)) fail(`중등 글: 어디서나 넣지 않기로 한 표기 "${w}"가 있음`);
+note(`중등 글에서만 허용: ${MIDDLE_ONLY.map((w) => `"${w}" ${middleText.split(w).length - 1}회`).join(', ')}`);
 // 논쟁 도형은 점선
 let disputed = 0;
 for (const s of snaps) for (const f of s.features) {
@@ -372,6 +383,7 @@ else {
   const m = /<[^>]+id="map-disclaimer"[^>]*>([\s\S]*?)<\//.exec(html);
   if (!m || !m[1].includes(DISCLAIMER)) fail(`지도 위 면책 문구(#map-disclaimer)에 "${DISCLAIMER}"가 없음`);
   if (!html.includes('아래 막대를 움직이거나')) fail('첫 화면 안내 문구가 없음');
+  if (!html.includes('교과서 서술을 따르되 교과서마다 조금씩 다를 수 있어요')) fail('화면에 "교과서 서술을 따르되 교과서마다 조금씩 다를 수 있어요" 문구가 없음');
 }
 
 // ---------- 6. 오프라인 동작 ----------

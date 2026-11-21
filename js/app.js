@@ -17,7 +17,11 @@
   // 수준마다 다른 화면 문구
   var UI = {
     elementary: { disputed: '점선 부분은 학자마다 생각이 달라요.', disputedPoint: '정확한 자리는 학자마다 생각이 달라요.' },
-    middle: { disputed: '점선은 학설이 갈리는 경계입니다.', disputedPoint: '위치는 학설이 갈립니다.' },
+    middle: {
+      disputed: '점선은 학설이 갈리는 경계입니다.', disputedPoint: '위치는 학설이 갈립니다.',
+      legendDash: '학설이 갈리는 경계',
+      panelDisclaimer: '세력 범위는 대략적인 모습입니다. 옛 나라의 영역은 정해진 국경이 아니라 세력이 미친 범위이며, 점선은 학설이 갈리는 경계입니다. 교과서 서술을 따르되 교과서마다 조금씩 다를 수 있습니다.',
+    },
   }[LEVEL];
   function txt(snap) { return snap[LEVEL] || snap.elementary; }
   function intro(pol) { return Model.pick(pol && pol.intro, LEVEL) || ''; }
@@ -511,6 +515,8 @@
   if (LEVEL === 'middle') {
     $('level-badge').hidden = false;
     document.title += ' (중학교)';
+    $('legend-dash').textContent = UI.legendDash;
+    $('panel-disclaimer').textContent = UI.panelDisclaimer;
   }
   buildTimeline();
   map.fit();
