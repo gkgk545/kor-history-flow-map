@@ -223,6 +223,15 @@ await check('지형 음영: 이미지가 읽히고 바탕 지도 범위를 덮�
     const back = getComputedStyle(im).display !== 'none' && !$('map-credit').hidden;
     return (loaded && covers && order && creditOn && off && back) || { loaded, covers, order, creditOn, off, back };`);
 });
+await check('주변 세력은 한 묶음으로 한 번만 흐림(936년 거란·여진 사이 밝은 줄 없음)', async () => {
+  await open('year=936');
+  return ev(`${H}
+    const wrap = document.querySelector('#map .fills > g.neighbors');
+    const inner = wrap ? [...wrap.querySelectorAll(':scope > g.polity')] : [];
+    const names = inner.map((g) => g.dataset.name);
+    const ok = wrap && wrap.getAttribute('filter') === 'url(#soft)' && names.includes('거란') && names.includes('여진') && inner.every((g) => !g.hasAttribute('filter'));
+    return ok || { wrap: !!wrap, names };`);
+});
 await check('다른 사건을 누르면 앞 사건의 반짝임이 바로 사라짐(612 → 다른 해)', async () => {
   await open('year=600');
   return ev(`${H}

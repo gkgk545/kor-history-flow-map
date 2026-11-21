@@ -142,7 +142,7 @@ node scripts/screenshots.mjs
 - `build-data.mjs`: `data/*.geojson`, `data/content.json` → `data/data.js`. `--ne <Natural Earth 폴더>`를 주면 바탕 지도도 다시 자른다.
 - `build-hillshade.mjs <타일 폴더>`: Terrain Tiles 64장 → `data/hillshade.png`(지형 음영). 타일은 저장소에 없으므로 다시 만들 때만 받는다(받는 곳은 `data/SOURCES.md`).
 - `check.mjs`: GeoJSON 유효성, 모든 연도·월의 장면 유무, 필수 속성, 0년 없는 연도 계산과 연도↔막대 위치 변환, 수준별 글 규칙(문장 수·길이, 사건·질문 개수, 성취기준), 도읍·전투 점, 존속 연도와 장면 범위, 표기 원칙(수준별 금지어, 고조선·간도·한 군현 자리), 외부 요청 여부를 검사한다.
-- `interact-check.mjs`: 시스템 Chrome 헤드리스를 DevTools 프로토콜로 조작해 file://에서 장면 이동, 막대, 재생, 딥링크(기원전·수준), 점 층, 수준 전환, 4개 해상도의 48px 조작 요소 등 52항목을 확인한다.
+- `interact-check.mjs`: 시스템 Chrome 헤드리스를 DevTools 프로토콜로 조작해 file://에서 장면 이동, 막대, 재생, 딥링크(기원전·수준), 점 층, 수준 전환, 4개 해상도의 48px 조작 요소 등 53항목을 확인한다.
 - `screenshots.mjs`: 해상도별 레이아웃(초등·중등)과 장면별 지도 스크린샷을 `review/`에 만든다.
 - 나라 도형의 원본은 `scripts/draft-shapes.mjs`(공유 경계선을 이어 붙여 만듦)다. 고친 뒤 `node scripts/draft-shapes.mjs data`로 `data/s-*.geojson`을 다시 만든다. 도읍·전투 점의 원본은 `scripts/points-src.mjs`다.
 - Gemini 검토 입력은 `node scripts/review-input.mjs`, 한 회 실행은 `sh scripts/review-run.sh <history|text> <elementary|middle>`.

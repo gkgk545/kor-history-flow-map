@@ -253,6 +253,10 @@
       return ra - rb;
     });
 
+    // 주변 세력은 모두 같은 회색이다. 나라마다 따로 흐리면 맞닿은 경계에서 두 흐림이 겹쳐
+    // 밝은 줄이 생기므로(예: 거란·여진), 한 묶음으로 모아 한 번만 흐린다
+    var gNeighbors = el('g', { class: 'neighbors', filter: 'url(#soft)' }, self.gFill);
+
     names.forEach(function (name) {
       var fs = byName.get(name);
       var p0 = fs[0].properties;
@@ -262,8 +266,9 @@
       var isZone = p0.kind === 'zone';
       var fill = isZone ? self._zoneHatch(color) : pol.pattern === 'hatch' ? self._hatch(color) : color;
       var gCls = 'polity ' + (isZone ? 'zone' : p0.role);
-      var g = el('g', { class: gCls, 'data-name': name }, self.gFill);
-      if (!isZone) g.setAttribute('filter', 'url(#soft)');
+      var inNeighbors = p0.role === 'neighbor' && !isZone;
+      var g = el('g', { class: gCls, 'data-name': name }, inNeighbors ? gNeighbors : self.gFill);
+      if (!isZone && !inNeighbors) g.setAttribute('filter', 'url(#soft)');
       self.groups[name] = { g: g, features: fs, color: color, role: p0.role, fillAs: p0.fillAs || null };
       fs.forEach(function (f) {
         var d = geomD(f.geometry);
